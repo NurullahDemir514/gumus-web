@@ -47,6 +47,7 @@ const toNum = (s) => {
   const fmtTL = (n) => Number.isFinite(n) ? `${TL.format(n)} ₺` : "—";
   const fmtTLg = (n) => Number.isFinite(n) ? `${TL4.format(n)} ₺/g` : "—";
   const fmtPct = (n) => Number.isFinite(n) ? `%${TL.format(n)}` : "—";
+  const fmtSignedPct = (n) => Number.isFinite(n) ? `${sign(n)}%${TL.format(n)}` : "—";
   const HISTORY_KEY = "onur_portfolio_history_v1";
   const HISTORY_SELECT_KEY = "onur_portfolio_history_select_v1";
   const MAX_HISTORY = 2000;
@@ -65,6 +66,7 @@ const toNum = (s) => {
   const nowTR = () => formatStamp(Date.now());
   const clsNum = (n) => n > 0 ? "pos" : (n < 0 ? "neg" : "muted");
   let historyFilter = "all";
+  let lastTopProfit = null;
 
   const setFieldError = (id, msg) => {
     const input = $(id);
@@ -127,7 +129,14 @@ const toNum = (s) => {
         out.push({
           t: lastT,
           y: avgY,
-          meta: { n: bucket.length, min: minY, max: maxY, kind: "dayAvg" }
+          meta: {
+            n: bucket.length,
+            min: minY,
+            max: maxY,
+            open: bucket[0].y,
+            close: bucket[bucket.length-1].y,
+            kind: "dayAvg"
+          }
         });
       }
     }
@@ -141,12 +150,30 @@ const toNum = (s) => {
     return sampled;
   };
 
-  const buildSeries = (history, field) => {
+  // Build series with display mode applied before downsampling.
+  const buildSeries = (history, field, mode="abs") => {
     const points = history
-      .map(h => ({ t: h.t, y: h[field], meta: null }))
+      .map(h => ({ t: h.t, y: h[field] }))
       .filter(p => Number.isFinite(p.y))
       .sort((a,b)=>a.t-b.t);
-    return downsampleDaily(points, { threshold: DAY_AVG_THRESHOLD, maxPoints: MAX_CHART_POINTS });
+    if (!points.length) return [];
+
+    let series = points.map(p => ({ t: p.t, y: p.y, meta: null }));
+    if (mode === "delta"){
+      series = series.map((p, idx) => {
+        if (idx === 0) return { ...p, y: 0 };
+        return { ...p, y: p.y - series[idx-1].y };
+      });
+    } else if (mode === "pct"){
+      const base = series[0].y;
+      series = series.map((p, idx) => {
+        if (idx === 0) return { ...p, y: 0 };
+        if (!Number.isFinite(base) || base === 0) return { ...p, y: 0 };
+        return { ...p, y: ((p.y - base) / Math.abs(base)) * 100 };
+      });
+    }
+
+    return downsampleDaily(series, { threshold: DAY_AVG_THRESHOLD, maxPoints: MAX_CHART_POINTS });
   };
 
   // ====== STATE ======
@@ -261,7 +288,13 @@ const toNum = (s) => {
       totalEl.textContent = fmtSignedTL(tp);
       totalEl.classList.remove("pos","neg","muted");
       totalEl.classList.add(clsNum(tp));
+      if (Number.isFinite(tp) && lastTopProfit !== null && tp !== lastTopProfit) {
+        totalEl.classList.remove("isPulse");
+        void totalEl.offsetWidth;
+        totalEl.classList.add("isPulse");
+      }
     }
+    if (Number.isFinite(tp)) lastTopProfit = tp;
 
     const prevTot = state.prev.totalProfit;
     if (Number.isFinite(prevTot)) {
@@ -545,14 +578,28 @@ const toNum = (s) => {
         const ys = this.series.map(p=>p.y);
         let min = Math.min(...ys);
         let max = Math.max(...ys);
+        const rawMin = min;
+        const rawMax = max;
+        const range = (max - min) || 1;
+        let includeZero = false;
 
-        if (this.opts.includeZero){
+        // includeZeroMode: true | false | "auto"
+        const mode = this.opts.includeZeroMode;
+        if (mode === true){
           min = Math.min(min, 0);
           max = Math.max(max, 0);
+          includeZero = true;
+        } else if (mode === "auto") {
+          const nearZero = (Math.abs(rawMin) < range*0.25 && Math.abs(rawMax) < range*0.25) || (rawMin < 500 && rawMax < 500);
+          if ((rawMin < 0 && rawMax > 0) || nearZero){
+            min = Math.min(min, 0);
+            max = Math.max(max, 0);
+            includeZero = true;
+          }
         }
-        const range = (max - min) || 1;
+
         const pad = range * 0.12;
-        return { min: min - pad, max: max + pad, rawMin: Math.min(...ys), rawMax: Math.max(...ys) };
+        return { min: min - pad, max: max + pad, rawMin, rawMax, includeZero };
       }
 
       _showTip(clientX, clientY, i){
@@ -561,12 +608,14 @@ const toNum = (s) => {
         if (!p) return;
 
         const title = this.opts.title || "—";
-        const val = (this.opts.valueFmt || ((v)=>fmtCompactTL(v)))(p.y);
+        const valFmt = this.opts.valueFmt || ((v)=>fmtCompactTL(v));
+        const val = valFmt(p.y);
         const time = fmtTimeTR(p.t);
         const meta = p.meta;
         const extra = (meta && meta.kind === "dayAvg")
           ? `<div class="t3">Bu gün: ${meta.n} kayıt • Ortalama</div>
-             <div class="t3">min ${fmtCompactTL(meta.min)} • max ${fmtCompactTL(meta.max)}</div>`
+             <div class="t3">min ${valFmt(meta.min)} • max ${valFmt(meta.max)}</div>
+             <div class="t3">açılış ${valFmt(meta.open)} • kapanış ${valFmt(meta.close)}</div>`
           : `<div class="t3">${i+1}/${this.series.length}</div>`;
 
         this.tip.innerHTML = `
@@ -626,16 +675,17 @@ const toNum = (s) => {
           ctx.stroke();
         }
 
+        const valFmt = this.opts.valueFmt || ((v)=>fmtCompactTL(v));
         ctx.fillStyle = "rgba(255,255,255,.55)";
         ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas";
         const yTop = maxY;
         const yMid = (maxY + minY)/2;
         const yBot = minY;
-        ctx.fillText(fmtCompactTL(yTop), 8, yScale(yTop)+4);
-        ctx.fillText(fmtCompactTL(yMid), 8, yScale(yMid)+4);
-        ctx.fillText(fmtCompactTL(yBot), 8, yScale(yBot)+4);
+        ctx.fillText(valFmt(yTop), 8, yScale(yTop)+4);
+        ctx.fillText(valFmt(yMid), 8, yScale(yMid)+4);
+        ctx.fillText(valFmt(yBot), 8, yScale(yBot)+4);
 
-        if (this.opts.includeZero){
+        if (dom.includeZero){
           const y0 = yScale(0);
           ctx.setLineDash([6,6]);
           ctx.strokeStyle = "rgba(255,255,255,.18)";
@@ -647,15 +697,32 @@ const toNum = (s) => {
         }
 
         const pts = this.series.map((p,i)=>({ x:xScale(i), y:yScale(p.y), v:p.y, t:p.t }));
-
-        const grad = ctx.createLinearGradient(0,padT,0,h-padB);
-        grad.addColorStop(0, "rgba(106,169,255,.22)");
-        grad.addColorStop(1, "rgba(106,169,255,.02)");
+        const baseY = yScale(this.series[0].y);
+        ctx.setLineDash([5,6]);
+        ctx.strokeStyle = "rgba(255,255,255,.14)";
+        ctx.beginPath();
+        ctx.moveTo(padL, baseY);
+        ctx.lineTo(w-padR, baseY);
+        ctx.stroke();
+        ctx.setLineDash([]);
 
         const lastV = this.series[this.series.length-1].y;
         const lineCol = this.opts.dynamicColor
           ? (lastV >= 0 ? "rgba(65,209,125,.95)" : "rgba(255,92,122,.95)")
           : "rgba(106,169,255,.95)";
+        const grad = ctx.createLinearGradient(0,padT,0,h-padB);
+        if (this.opts.dynamicColor){
+          if (lastV >= 0){
+            grad.addColorStop(0, "rgba(65,209,125,.20)");
+            grad.addColorStop(1, "rgba(65,209,125,.03)");
+          } else {
+            grad.addColorStop(0, "rgba(255,92,122,.20)");
+            grad.addColorStop(1, "rgba(255,92,122,.03)");
+          }
+        } else {
+          grad.addColorStop(0, "rgba(106,169,255,.22)");
+          grad.addColorStop(1, "rgba(106,169,255,.02)");
+        }
 
         ctx.beginPath();
         if (pts.length <= 2){
@@ -669,31 +736,51 @@ const toNum = (s) => {
           }
         }
 
-        ctx.save();
-        ctx.beginPath();
-        if (pts.length === 1){
-          ctx.moveTo(pts[0].x, pts[0].y);
-        } else if (pts.length === 2){
-          ctx.moveTo(pts[0].x, pts[0].y);
-          ctx.lineTo(pts[1].x, pts[1].y);
-        } else {
-          ctx.moveTo(pts[0].x, pts[0].y);
-          const segs = catmullRomToBezier(pts);
-          for (const s of segs){
-            ctx.bezierCurveTo(s.c1.x,s.c1.y,s.c2.x,s.c2.y,s.p2.x,s.p2.y);
+        if (pts.length >= 2){
+          ctx.save();
+          ctx.beginPath();
+          if (pts.length === 2){
+            ctx.moveTo(pts[0].x, pts[0].y);
+            ctx.lineTo(pts[1].x, pts[1].y);
+          } else {
+            ctx.moveTo(pts[0].x, pts[0].y);
+            const segs = catmullRomToBezier(pts);
+            for (const s of segs){
+              ctx.bezierCurveTo(s.c1.x,s.c1.y,s.c2.x,s.c2.y,s.p2.x,s.p2.y);
+            }
           }
+          ctx.lineTo(pts[pts.length-1].x, h-padB);
+          ctx.lineTo(pts[0].x, h-padB);
+          ctx.closePath();
+          ctx.fillStyle = grad;
+          ctx.fill();
+          ctx.restore();
         }
-        ctx.lineTo(pts[pts.length-1].x, h-padB);
-        ctx.lineTo(pts[0].x, h-padB);
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.restore();
 
         ctx.strokeStyle = lineCol;
         ctx.lineWidth = 2.25;
         ctx.lineJoin = "round";
         ctx.lineCap = "round";
+
+        this.series.forEach((p, i) => {
+          if (p.meta && p.meta.kind === "dayAvg"){
+            const x = pts[i].x;
+            const yMin = yScale(p.meta.min);
+            const yMax = yScale(p.meta.max);
+            ctx.strokeStyle = "rgba(255,255,255,.20)";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(x, yMin);
+            ctx.lineTo(x, yMax);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x-4, yMin);
+            ctx.lineTo(x+4, yMin);
+            ctx.moveTo(x-4, yMax);
+            ctx.lineTo(x+4, yMax);
+            ctx.stroke();
+          }
+        });
 
         ctx.beginPath();
         if (pts.length <= 2){
@@ -737,9 +824,22 @@ const toNum = (s) => {
           drawDot(this.hoverI, 4, lineCol);
         }
 
-        drawDot(lastI, 4, lineCol);
+        drawDot(lastI, pts.length === 1 ? 6 : 4, lineCol);
         if (minI !== lastI) drawDot(minI, 3, "rgba(255,255,255,.65)");
         if (maxI !== lastI) drawDot(maxI, 3, "rgba(255,255,255,.65)");
+
+        if (pts.length === 1){
+          const txt = valFmt(ys[0]);
+          ctx.fillStyle = "rgba(255,255,255,.9)";
+          ctx.font = "18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas";
+          const tw = ctx.measureText(txt).width;
+          ctx.fillText(txt, (w - tw)/2, h/2 - 6);
+          ctx.fillStyle = "rgba(255,255,255,.45)";
+          ctx.font = "11px ui-sans-serif, system-ui";
+          const help = "Trend için en az 2 kayıt";
+          const hw = ctx.measureText(help).width;
+          ctx.fillText(help, (w - hw)/2, h/2 + 16);
+        }
 
         const chip = (text, x, y, align="left") => {
           const padX=8, padY=5;
@@ -765,10 +865,10 @@ const toNum = (s) => {
           ctx.fillText(text, bx+padX, by+15);
         };
 
-        chip(`son: ${fmtCompactTL(ys[lastI])}`, pts[lastI].x, pts[lastI].y, "right");
+        chip(`son: ${valFmt(ys[lastI])}`, pts[lastI].x, pts[lastI].y, "right");
         if (pts.length >= 3){
-          chip(`min: ${fmtCompactTL(ys[minI])}`, pts[minI].x, pts[minI].y, "left");
-          chip(`max: ${fmtCompactTL(ys[maxI])}`, pts[maxI].x, pts[maxI].y, "left");
+          chip(`min: ${valFmt(ys[minI])}`, pts[minI].x, pts[minI].y, "left");
+          chip(`max: ${valFmt(ys[maxI])}`, pts[maxI].x, pts[maxI].y, "left");
         }
 
         ctx.fillStyle = "rgba(255,255,255,.45)";
@@ -945,6 +1045,13 @@ const toNum = (s) => {
 
   /* ---------- renderCharts (premium) ---------- */
   let _chartProfitV2, _chartValueV2;
+  const getRawHistoryPair = (history, field) => {
+    const raw = history.map(h => h[field]).filter(Number.isFinite);
+    if (!raw.length) return { last: NaN, prev: NaN };
+    const last = raw[raw.length-1];
+    const prev = raw.length >= 2 ? raw[raw.length-2] : NaN;
+    return { last, prev };
+  };
 
   function renderCardsContribution(container, items, prevItems){
     if (!container) return;
@@ -970,10 +1077,13 @@ const toNum = (s) => {
           <div class="lbl">${it.label}</div>
           <div class="val" style="color:${color}">${fmtSignedTL(it.value)}</div>
           <div class="mini">%${TL.format(pct)} pay</div>
-          ${isPassive
-            ? "<div class=\"contribBar--dashed\"></div>"
-            : `<div class="contribBar"><span style="width:${pct}%; background:${color};"></span></div>`
-          }
+          <div class="contribBarWrap">
+            ${isPassive
+              ? "<div class=\"contribBar--dashed\"></div>"
+              : `<div class="contribBar"><span style="width:${pct}%; background:${color};"></span></div>`
+            }
+            <div class="contribBarTip">%${TL.format(pct)} pay</div>
+          </div>
           <div class="contribMeta">
             <div>Toplam kârın %${TL.format(pct)}’u</div>
             <div>Son güncellemeden beri ${diffText}</div>
@@ -1011,22 +1121,42 @@ const toNum = (s) => {
 
   function renderSummaryFooter(calc, entry){
     const footer = $("summaryFooterText");
+    const band = $("summaryBand");
     if (!footer || !calc) return;
     const silver = Number.isFinite(calc.silver.net) ? calc.silver.net : 0;
     const asel = Number.isFinite(calc.aselsan.profit) ? calc.aselsan.profit : 0;
     const uc = Number.isFinite(calc.ucaym.profit) ? calc.ucaym.profit : 0;
     const sumAbs = Math.abs(silver) + Math.abs(asel) + Math.abs(uc);
+    const prev = getPrevHistoryEntry(entry);
+    const prevTot = prev?.calc?.totals ? prev.calc.totals.totalProfit : NaN;
+    const diff = Number.isFinite(prevTot) ? (calc.totals.totalProfit - prevTot) : NaN;
+    const trendIcon = Number.isFinite(diff) ? (diff > 0 ? "↑" : (diff < 0 ? "↓" : "→")) : "→";
+    const trendLine = Number.isFinite(diff)
+      ? `Kısa trend: ${trendIcon} ${fmtSignedTL(diff)}`
+      : "Kısa trend: —";
     if (sumAbs === 0){
-      footer.innerHTML = "<div>Portföy kârı şu an nötr, dağılım yorumu için veri yok.</div>";
+      footer.innerHTML = `<div>${trendLine}</div><div>Portföy kârı şu an nötr, dağılım yorumu için veri yok.</div>`;
+      if (band) band.textContent = "Bant: —";
       return;
     }
     const silverAsShare = ((Math.abs(silver) + Math.abs(asel)) / sumAbs) * 100;
     const maxShare = Math.max(Math.abs(silver), Math.abs(asel), Math.abs(uc)) / sumAbs * 100;
-    const line1 = `Portföy kârının %${TL.format(silverAsShare)}’u gümüş ve ASELSAN’dan geliyor.`;
-    const line2 = (maxShare >= 70)
-      ? "Varlık dağılımı tek varlıkta yoğunlaşıyor, çeşitlilik dengesi zayıf."
-      : "Varlık dağılımı dengeli, tek varlığa aşırı yüklenme yok.";
-    footer.innerHTML = `<div>${line1}</div><div>${line2}</div>`;
+    const balanceNote = (maxShare >= 70)
+      ? "tek varlıkta yoğunlaşıyor"
+      : "dengeli";
+    const line2 = `Portföy kârının %${TL.format(silverAsShare)}’u gümüş ve ASELSAN’dan geliyor; dağılım ${balanceNote}.`;
+    footer.innerHTML = `<div>${trendLine}</div><div>${line2}</div>`;
+
+    const history = loadHistory();
+    const targetDay = entry && Number.isFinite(entry.t) ? dayKey(entry.t) : dayKey(Date.now());
+    const dayItems = history.filter(h => dayKey(h.t) === targetDay && Number.isFinite(h.totalProfit));
+    const minVal = dayItems.length ? Math.min(...dayItems.map(h => h.totalProfit)) : NaN;
+    const maxVal = dayItems.length ? Math.max(...dayItems.map(h => h.totalProfit)) : NaN;
+    if (band) {
+      band.textContent = Number.isFinite(minVal) && Number.isFinite(maxVal)
+        ? `Bant: ${fmtSignedTL(minVal)} - ${fmtSignedTL(maxVal)}`
+        : "Bant: —";
+    }
   }
 
   function renderHistoryList(){
@@ -1118,44 +1248,48 @@ const toNum = (s) => {
   function renderCharts(calc){
     const history = loadHistory();
 
-    const profitSeries = buildSeries(history, "totalProfit");
-    const valueSeries = buildSeries(history, "totalValue");
+    const profitSeries = buildSeries(history, "totalProfit", "abs");
+    const valueSeries = buildSeries(history, "totalValue", "abs");
     const rawProfitCount = history.filter(h => Number.isFinite(h.totalProfit)).length;
     const rawValueCount = history.filter(h => Number.isFinite(h.totalValue)).length;
 
     if (!_chartProfitV2){
       _chartProfitV2 = new ChartsV2.LineChart($("chartProfit"), $("tipProfit"), {
         title: "Toplam Net Kâr",
-        includeZero: true,
+        includeZeroMode: "auto",
         dynamicColor: true,
         valueFmt: (v)=>fmtSignedTL(v)
       });
       _chartValueV2 = new ChartsV2.LineChart($("chartValue"), $("tipValue"), {
         title: "Toplam Değer",
-        includeZero: false,
+        includeZeroMode: "auto",
         dynamicColor: false,
         valueFmt: (v)=>fmtTL(v)
       });
     }
 
+    _chartProfitV2.opts.valueFmt = (v)=>fmtSignedTL(v);
+    _chartValueV2.opts.valueFmt = (v)=>fmtTL(v);
+
     $("chartCountProfit").textContent = `(gösterilen ${profitSeries.length} / ham ${rawProfitCount})`;
     $("chartCountValue").textContent  = `(gösterilen ${valueSeries.length} / ham ${rawValueCount})`;
 
-    const setBadge = (el, series, fmtVal) => {
+    const setBadge = (el, field, fmtVal) => {
       if (!el) return;
-      if (!series.length){
+      const { last, prev } = getRawHistoryPair(history, field);
+      if (!Number.isFinite(last)){
         el.textContent = "—";
         return;
       }
-      const last = series[series.length-1].y;
-      const prev = series.length >= 2 ? series[series.length-2].y : last;
-      const diff = last - prev;
-      const pct = prev ? (diff / Math.abs(prev) * 100) : 0;
-      el.textContent = `${fmtVal(last)} • ${diff>=0?"+":""}${TL.format(diff)}₺ • ${pct>=0?"+":""}${TL.format(pct)}%`;
+      const diff = Number.isFinite(prev) ? (last - prev) : NaN;
+      const pct = (Number.isFinite(prev) && prev !== 0) ? (diff / Math.abs(prev) * 100) : NaN;
+      const pctStr = Number.isFinite(pct) ? `${pct>=0?"+":""}${TL.format(pct)}%` : "—";
+      const diffStr = Number.isFinite(diff) ? `${diff>=0?"+":""}${TL.format(diff)}₺` : "—";
+      el.textContent = `${fmtVal(last)} • ${diffStr} • ${pctStr}`;
     };
 
-    setBadge($("chartBadgeProfit"), profitSeries, (v)=>fmtSignedTL(v));
-    setBadge($("chartBadgeValue"),  valueSeries,  (v)=>fmtTL(v));
+    setBadge($("chartBadgeProfit"), "totalProfit", (v)=>fmtSignedTL(v));
+    setBadge($("chartBadgeValue"),  "totalValue",  (v)=>fmtTL(v));
 
     _chartProfitV2.setSeries(profitSeries);
     _chartValueV2.setSeries(valueSeries);
@@ -1374,11 +1508,15 @@ const toNum = (s) => {
     const currentIndex = () => Math.round(slider.scrollLeft / slider.clientWidth);
     const dotsWrap = $("sliderDots");
     const dots = dotsWrap ? Array.from(dotsWrap.querySelectorAll(".dot")) : [];
+    let lastActiveIdx = -1;
     const setActiveDot = (idx) => {
+      if (idx === lastActiveIdx) return;
+      lastActiveIdx = idx;
       dots.forEach((dot, i) => {
         const active = i === idx;
         dot.classList.toggle("isActive", active);
         dot.setAttribute("aria-selected", active ? "true" : "false");
+        dot.style.setProperty("--fill", active ? "100%" : "0%");
       });
     };
     const goTo = (idx) => {
@@ -1421,6 +1559,7 @@ const toNum = (s) => {
     let startX = 0;
     let startScroll = 0;
     slider.addEventListener("pointerdown", (e) => {
+      if (e.target.closest(".modeBtn")) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
       isDown = true;
       startX = e.clientX;
