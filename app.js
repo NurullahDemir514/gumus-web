@@ -376,16 +376,7 @@ const toNum = (s) => {
   const ChartsV2 = (() => {
     const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
 
-    const fmtCompactTL = (n) => {
-      if (!Number.isFinite(n)) return "—";
-      const abs = Math.abs(n);
-      const nf1 = new Intl.NumberFormat("tr-TR",{maximumFractionDigits:1});
-      const nf2 = new Intl.NumberFormat("tr-TR",{maximumFractionDigits:2});
-      if (abs >= 1e9)  return `${nf2.format(n/1e9)}B ₺`;
-      if (abs >= 1e6)  return `${nf2.format(n/1e6)}M ₺`;
-      if (abs >= 1e3)  return `${nf1.format(n/1e3)}K ₺`;
-      return `${TL.format(n)} ₺`;
-    };
+    const fmtCompactTL = (n) => Number.isFinite(n) ? `${TL.format(n)} ₺` : "—";
 
     const fmtTimeTR = (ms) => {
       try{
@@ -525,8 +516,18 @@ const toNum = (s) => {
         `;
 
         this.tip.classList.add("isOn");
-        this.tip.style.left = `${clientX}px`;
-        this.tip.style.top  = `${clientY}px`;
+        const rect = this.canvas.getBoundingClientRect();
+        const offsetX = 12;
+        const offsetY = 10;
+        const rawX = clientX - rect.left + offsetX;
+        const rawY = clientY - rect.top + offsetY;
+        const tipRect = this.tip.getBoundingClientRect();
+        const maxX = rect.width - tipRect.width - 6;
+        const maxY = rect.height - tipRect.height - 6;
+        const clampedX = Math.max(6, Math.min(rawX, maxX));
+        const clampedY = Math.max(6, Math.min(rawY, maxY));
+        this.tip.style.left = `${clampedX}px`;
+        this.tip.style.top  = `${clampedY}px`;
       }
 
       _hideTip(){
@@ -898,6 +899,84 @@ const toNum = (s) => {
     }).join("");
   }
 
+  function renderHistoryList(){
+    const list = $("historyList");
+    if (!list) return;
+    const meta = $("historyMeta");
+    const summary = $("historySummary");
+    const history = loadHistory().slice().sort((a,b)=>b.t-a.t);
+    const todayKey = dayKey(Date.now());
+    const today = history.filter(h => dayKey(h.t) === todayKey);
+
+    if (meta){
+      const lastT = history[0]?.t;
+      const lastTime = Number.isFinite(lastT) ? `${pad2(new Date(lastT).getHours())}:${pad2(new Date(lastT).getMinutes())}` : "—";
+      meta.textContent = `Bugün: ${today.length} kayıt • Son güncelleme: ${lastTime}`;
+    }
+
+    if (!history.length){
+      list.innerHTML = `
+        <div class="historyEmpty">
+          <div>Henüz kayıt yok</div>
+          <div class="mini">Fiyat girip Hesapla/Kaydet ile kayıt ekle.</div>
+        </div>
+      `;
+      if (summary) summary.style.display = "none";
+      return;
+    }
+
+    const items = history.map((h) => {
+      const net = Number.isFinite(h.totalProfit) ? h.totalProfit : NaN;
+      const netStr = Number.isFinite(net) ? fmtSignedTL(net) : "Net —";
+      const d = new Date(h.t);
+      const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      const silver = Number.isFinite(h.calc?.inputs?.silverPx) ? `Gümüş ${TL4.format(h.calc.inputs.silverPx)} ₺/g` : null;
+      const asel = Number.isFinite(h.calc?.inputs?.asPx) ? `ASELS ${TL.format(h.calc.inputs.asPx)} ₺` : null;
+      const ucaym = Number.isFinite(h.calc?.inputs?.ucPxOpt) ? `UCAYM ${TL.format(h.calc.inputs.ucPxOpt)} ₺` : null;
+      const sub = [silver, asel, ucaym].filter(Boolean).join(" • ");
+      const dotColor = Number.isFinite(net) ? (net >= 0 ? "var(--good)" : "var(--bad)") : "var(--muted)";
+      const cardClass = Number.isFinite(net) ? (net >= 0 ? "pos" : "neg") : "muted";
+      return `
+        <div class="historyItem" tabindex="0">
+          <div class="historyDot" style="background:${dotColor}"></div>
+          <div class="historyCard">
+            <div class="historyTop">
+              <div class="historyNet ${cardClass}">Net ${netStr}</div>
+              <div class="historyTime">${time}</div>
+            </div>
+            <div class="historySub">${sub || "—"}</div>
+            <div class="historyBadge" data-stamp="${h.stamp || formatStamp(h.t)}">Detay</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+    list.innerHTML = items;
+
+    list.querySelectorAll(".historyBadge").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        console.log("Detay", btn.dataset.stamp || "");
+      });
+    });
+
+    if (summary){
+      const todayNets = today.map(h => h.totalProfit).filter(Number.isFinite);
+      if (!todayNets.length){
+        summary.style.display = "none";
+      } else {
+        const min = Math.min(...todayNets);
+        const max = Math.max(...todayNets);
+        const diff = max - min;
+        summary.style.display = "grid";
+        summary.innerHTML = `
+          <div><div class="lbl">Min Net</div><div class="val">${fmtSignedTL(min)}</div></div>
+          <div><div class="lbl">Max Net</div><div class="val">${fmtSignedTL(max)}</div></div>
+          <div><div class="lbl">Gün içi fark</div><div class="val">${fmtSignedTL(diff)}</div></div>
+        `;
+      }
+    }
+  }
+
   function renderCharts(calc){
     const history = loadHistory();
 
@@ -958,6 +1037,7 @@ const toNum = (s) => {
     renderHistorySelectOptions();
     applySummarySelection(calc);
     renderCharts(calc);
+    renderHistoryList();
   }
 
   // ====== ACTIONS ======
@@ -1103,6 +1183,16 @@ const toNum = (s) => {
       if (lastCalc) applySummarySelection(lastCalc);
     });
   }
+  const historyFilters = $("historyFilters");
+  if (historyFilters) {
+    historyFilters.querySelectorAll(".chipBtn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.getAttribute("aria-disabled") === "true") return;
+        historyFilters.querySelectorAll(".chipBtn").forEach((b) => b.classList.remove("isActive"));
+        btn.classList.add("isActive");
+      });
+    });
+  }
 
 
   // === INPUTLARDA SON GİRİLENİ KAYDET/YÜKLE ===
@@ -1152,5 +1242,6 @@ const toNum = (s) => {
     if (entry && entry.calc) {
       renderOutputTable(entry.calc, entry.stamp || formatStamp(entry.t));
     }
+    renderHistoryList();
   }
 });

@@ -201,6 +201,12 @@
               </table>
             </div>
           </div>
+          <div class="chartCard">
+            <div class="chartTitle">Varlık Net Kâr Katkısı</div>
+            <div class="chartWrap chartWrap--bars chartWrap--cards">
+              <div class="contribCards" id="chartCards"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -238,14 +244,27 @@
               </div>
             </div>
 
-            <div class="chartCard">
-              <div class="chartTitle">Varlık Net Kâr Katkısı</div>
-              <div class="chartWrap chartWrap--bars chartWrap--cards">
-                <div class="contribCards" id="chartCards"></div>
-              </div>
-            </div>
-
           </div>
+        </div>
+      </section>
+
+      <section class="card slide slide--history">
+        <div class="hd">
+          <div>
+            <div class="k">Girdi Akışı</div>
+            <div class="mini" id="historyMeta">Bugün: 0 kayıt • Son güncelleme: —</div>
+          </div>
+          <div class="actions">
+            <div class="chipGroup" id="historyFilters">
+              <button class="chipBtn isActive" data-filter="all">Tümü</button>
+              <button class="chipBtn" data-filter="silver" aria-disabled="true">Gümüş</button>
+              <button class="chipBtn" data-filter="stocks" aria-disabled="true">Hisse</button>
+            </div>
+          </div>
+        </div>
+        <div class="bd" style="min-height:0">
+          <div class="historyList" id="historyList"></div>
+          <div class="historySummary" id="historySummary"></div>
         </div>
       </section>
     </div>

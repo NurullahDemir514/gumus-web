@@ -61,9 +61,10 @@
       min-width:0;
       scroll-snap-align:start;
     }
-    .slide--input{width:48.78%}
-    .slide--summary{width:51.22%}
-    .slide--charts{width:51.22%}
+    .slide--input{width:calc((100% - 12px) * 0.44)}
+    .slide--summary{width:calc((100% - 12px) * 0.56)}
+    .slide--charts{width:calc((100% - 12px) * 0.56)}
+    .slide--history{width:calc((100% - 12px) * 0.56)}
     @media (max-width: 980px){
       body{overflow:auto}
       .shell{height:auto; min-height:100vh}
@@ -192,6 +193,9 @@
       -webkit-overflow-scrolling: touch;
       touch-action: pan-x pan-y;
     }
+    .tableWrap--list{
+      max-height: calc(100vh - 280px);
+    }
     @media (max-width: 980px){ .tableWrap{max-height:none} }
 
     /* output at right end: full-bleed inside right column */
@@ -206,6 +210,144 @@
       overflow:hidden;
       border:1px solid rgba(255,255,255,.08);
       background: rgba(0,0,0,.12);
+    }
+    .outTable--single th,
+    .outTable--single td{
+      text-align:left;
+    }
+    .outTable--single tbody tr td{
+      font-size:12px;
+      line-height:1.4;
+      color:var(--text);
+    }
+    .slide--history{
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .slide--history .bd{
+      flex:1;
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .historyList{
+      position:relative;
+      flex:1;
+      min-height:0;
+      overflow:auto;
+      padding:4px 6px 4px 22px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.08);
+      background:
+        radial-gradient(400px 200px at 20% 0%, rgba(106,169,255,.10), transparent 60%),
+        rgba(0,0,0,.18);
+    }
+    .historyList::before{
+      content:"";
+      position:absolute;
+      left:12px;
+      top:12px;
+      bottom:12px;
+      width:1px;
+      background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.02));
+    }
+    .historyItem{
+      display:flex;
+      gap:10px;
+      padding:12px 12px 12px 0;
+      border-radius:14px;
+      position:relative;
+      outline:none;
+    }
+    .historyItem:focus-visible{
+      box-shadow:0 0 0 3px rgba(106,169,255,.18);
+      background: rgba(255,255,255,.02);
+    }
+    .historyDot{
+      width:10px;
+      height:10px;
+      border-radius:999px;
+      margin-left:-17px;
+      margin-top:6px;
+      border:2px solid rgba(0,0,0,.4);
+      background: var(--accent);
+      flex:0 0 auto;
+      box-shadow:0 0 0 6px rgba(0,0,0,.20);
+    }
+    .historyCard{
+      flex:1;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.12));
+      padding:12px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      transition: border-color .2s ease, background .2s ease, transform .2s ease;
+    }
+    .historyItem:hover .historyCard{
+      border-color: rgba(255,255,255,.18);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.18));
+      transform: translateY(-1px);
+    }
+    .historyTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .historyNet{
+      font-size:15px;
+      font-weight:900;
+      font-family:var(--mono);
+    }
+    .historyTime{ font-size:11px; color:var(--muted); }
+    .historySub{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.4;
+    }
+    .historyBadge{
+      align-self:flex-end;
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.35);
+      color:var(--text);
+      opacity:0;
+      transition: opacity .2s ease;
+      cursor:pointer;
+    }
+    .historyItem:hover .historyBadge{ opacity:1; }
+    .historySummary{
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      padding:12px 14px;
+      background: rgba(0,0,0,.18);
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap:10px;
+      font-size:12px;
+    }
+    .historySummary .lbl{ color:var(--muted); }
+    .historySummary .val{ font-family:var(--mono); font-weight:800; }
+    .historyList::-webkit-scrollbar{ width:6px; }
+    .historyList::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,.12);
+      border-radius:999px;
+    }
+    .historyEmpty{
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      color:var(--muted);
+      font-size:12px;
     }
     .outGrid{
       display:grid;
@@ -238,6 +380,35 @@
       font-size:12px;
       color:var(--muted);
       margin-bottom:8px;
+    }
+    .slide--charts .bd{height:100%}
+    .slide--charts .chartGrid{
+      height:100%;
+      grid-template-rows: 1fr 1fr;
+    }
+    .slide--charts .chartCard{
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .slide--charts .chartWrap{
+      flex:1;
+      height:auto;
+    }
+    .slide--charts{
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .slide--charts .bd{
+      flex:1;
+      min-height:0;
+    }
+    .slide--charts .chartGrid{
+      gap:12px;
+    }
+    .slide--charts .chartCard{
+      overflow:hidden;
     }
     .chartBadge{
       margin-left:8px;
@@ -336,6 +507,27 @@
       font-size: 11px;
     }
     .actions{display:flex; gap:8px; flex-wrap:wrap}
+    .chipGroup{display:flex; gap:6px; flex-wrap:wrap}
+    .chipBtn{
+      width:auto;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      color:var(--text);
+      font-size:11px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .chipBtn.isActive{
+      border-color: rgba(106,169,255,.55);
+      box-shadow:0 0 0 3px rgba(106,169,255,.18);
+      background: linear-gradient(180deg, rgba(106,169,255,.25), rgba(106,169,255,.08));
+    }
+    .chipBtn[aria-disabled="true"]{
+      opacity:.5;
+      cursor:not-allowed;
+    }
     .historySelect select{
       appearance:none;
       border-radius:10px;
