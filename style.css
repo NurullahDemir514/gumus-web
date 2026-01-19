@@ -8,6 +8,8 @@
       --bad:#ff5c7a;
       --accent:#6aa9ff;
       --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --border: rgba(255,255,255,.10);
+      --card-bg: rgba(0,0,0,.10);
       --r:18px;
       --sticky-h: 140px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -22,6 +24,7 @@
         var(--bg);
       height:100vh;
       overflow:hidden;
+      overflow-x:hidden;
     }
 
     .page{
@@ -29,13 +32,14 @@
       display:flex;
       flex-direction:column;
       overflow:hidden;
+      width:100%;
     }
     h1{margin:0; font-size:20px; letter-spacing:.2px}
     .sub{color:var(--muted); font-size:12px; margin-top:6px}
     .pill{
       font-size:12px; color:var(--muted);
       border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.15);
+      background: rgba(0,0,0,.18);
       padding:6px 10px; border-radius:999px;
       font-family:var(--mono);
     }
@@ -44,7 +48,7 @@
       position:sticky;
       top:0;
       z-index:50;
-      width:100vw;
+      width:100%;
       padding:16px 20px;
       background: rgba(12,16,24,.72);
       backdrop-filter: blur(12px);
@@ -79,10 +83,10 @@
       text-transform:uppercase;
     }
     .barPanel{
-      border:1px solid rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
       border-radius:14px;
       padding:12px;
-      background: rgba(0,0,0,.22);
+      background: rgba(0,0,0,.12);
     }
     .linkBtn{
       width:auto;
@@ -100,7 +104,7 @@
       position:relative;
       flex:1;
       min-height:0;
-      width:100vw;
+      width:100%;
     }
     .slider{
       height:100%;
@@ -109,9 +113,10 @@
       scroll-snap-type:x mandatory;
       scroll-behavior:smooth;
       -webkit-overflow-scrolling: touch;
+      width:100%;
     }
     .panel{
-      flex:0 0 100vw;
+      flex:0 0 100%;
       min-width:0;
       scroll-snap-align:start;
       padding:0 20px 20px;
@@ -119,7 +124,7 @@
     .panelInner{
       height:100%;
       min-height:calc(100vh - var(--sticky-h));
-      border:1px solid rgba(255,255,255,.06);
+      border:1px solid var(--border);
       border-radius: var(--r);
       background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 70%), var(--card);
       box-shadow: var(--shadow);
@@ -129,7 +134,7 @@
     }
     .panelHd{
       padding:14px 16px 12px;
-      border-bottom:1px solid rgba(255,255,255,.06);
+      border-bottom:1px solid var(--border);
       display:flex;
       align-items:center;
       justify-content:space-between;
@@ -143,6 +148,25 @@
       display:flex;
       flex-direction:column;
       gap:12px;
+    }
+    .panel--summary .panelBody{
+      overflow:hidden;
+      gap:10px;
+      padding:12px 14px 14px;
+    }
+    .panel--summary .tableWrap{
+      max-height:none;
+    }
+    .panel--summary .outGrid{
+      gap:8px;
+    }
+    .panel--summary table th,
+    .panel--summary table td{
+      padding:8px 8px;
+      font-size:12px;
+    }
+    .panel--summary .chartWrap--cards{
+      padding:10px;
     }
     .chartRow{
       display:grid;
@@ -169,8 +193,37 @@
       border-radius:999px;
       font-size:12px;
       font-weight:800;
-      border:1px solid rgba(255,255,255,.12);
+      border:1px solid var(--border);
+      background: rgba(0,0,0,.18);
+    }
+    .sliderDots{
+      position:absolute;
+      left:50%;
+      bottom:8px;
+      transform: translateX(-50%);
+      display:flex;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
       background: rgba(0,0,0,.25);
+      backdrop-filter: blur(8px);
+    }
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.25);
+      cursor:pointer;
+    }
+    .dot.isActive{
+      background: var(--accent);
+      box-shadow:0 0 0 3px rgba(106,169,255,.2);
+    }
+    .dot:focus-visible{
+      outline:none;
+      box-shadow:0 0 0 3px rgba(106,169,255,.25);
     }
     .navBtn{
       position:absolute;
@@ -180,7 +233,7 @@
       width:36px;
       height:36px;
       border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.10);
       background: rgba(0,0,0,.35);
       color:var(--text);
       cursor:pointer;
@@ -201,7 +254,7 @@
 
     .card{
       background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 70%), var(--card);
-      border:1px solid rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
       border-radius: var(--r);
       box-shadow: var(--shadow);
       overflow:hidden;
@@ -209,7 +262,7 @@
     }
     .hd{
       padding:14px 14px 12px;
-      border-bottom:1px solid rgba(255,255,255,.06);
+      border-bottom:1px solid var(--border);
       display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
     }
     .k{font-size:13px; color:var(--muted)}
@@ -231,13 +284,24 @@
       font-family:var(--sans);
       font-size:14px;
       color:var(--text);
-      background: rgba(0,0,0,.20);
+      background: rgba(0,0,0,.18);
       border:1px solid rgba(255,255,255,.10);
       border-radius: 12px;
       padding:10px 12px;
       outline:none;
     }
     input:focus{border-color: rgba(106,169,255,.55); box-shadow:0 0 0 3px rgba(106,169,255,.15)}
+    .inputInvalid{
+      border-color: rgba(255,92,122,.65);
+      box-shadow:0 0 0 3px rgba(255,92,122,.18);
+    }
+    .helper{
+      min-height:14px;
+      margin-top:6px;
+      font-size:11px;
+      color:var(--muted);
+    }
+    .helper.isError{ color:var(--bad); }
     .btn{
       cursor:pointer; font-weight:800;
       background: linear-gradient(180deg, rgba(106,169,255,.28), rgba(106,169,255,.10));
@@ -337,8 +401,8 @@
       width:100%;
       border-radius: 16px;
       overflow:hidden;
-      border:1px solid rgba(255,255,255,.08);
-      background: rgba(0,0,0,.12);
+      border:1px solid var(--border);
+      background: var(--card-bg);
     }
     .outTable--single th,
     .outTable--single td{
@@ -356,10 +420,10 @@
       overflow:auto;
       padding:4px 6px 4px 22px;
       border-radius:14px;
-      border:1px solid rgba(255,255,255,.08);
+      border:1px solid var(--border);
       background:
         radial-gradient(400px 200px at 20% 0%, rgba(106,169,255,.10), transparent 60%),
-        rgba(0,0,0,.18);
+        var(--card-bg);
     }
     .historyList::before{
       content:"";
@@ -395,7 +459,7 @@
     }
     .historyCard{
       flex:1;
-      border:1px solid rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
       border-radius:14px;
       background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.12));
       padding:12px 14px;
@@ -431,7 +495,7 @@
       font-size:11px;
       padding:4px 8px;
       border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.10);
       background: rgba(0,0,0,.35);
       color:var(--text);
       opacity:0;
@@ -440,10 +504,10 @@
     }
     .historyItem:hover .historyBadge{ opacity:1; }
     .historySummary{
-      border:1px solid rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
       border-radius:14px;
       padding:12px 14px;
-      background: rgba(0,0,0,.18);
+      background: rgba(0,0,0,.12);
       display:grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap:10px;
@@ -488,9 +552,9 @@
       gap:10px;
     }
     .chartCard{
-      border:1px solid rgba(255,255,255,.08);
+      border:1px solid var(--border);
       border-radius: 14px;
-      background: rgba(0,0,0,.12);
+      background: var(--card-bg);
       padding:12px;
     }
     .chartTitle{
@@ -505,8 +569,8 @@
       font-size:11px;
       font-weight:800;
       color:var(--text);
-      background: rgba(0,0,0,.25);
-      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      border:1px solid var(--border);
     }
     .chartSvg{
       width:100%;
@@ -521,7 +585,7 @@
       background:
         radial-gradient(600px 240px at 30% 0%, rgba(106,169,255,.10), transparent 55%),
         rgba(0,0,0,.10);
-      border:1px solid rgba(255,255,255,.08);
+      border:1px solid var(--border);
     }
     .chartWrap--bars{ height:170px; }
     .chartWrap--cards{ height:auto; padding:12px; }
@@ -539,7 +603,7 @@
       transform: translate(-50%, -110%);
       padding:10px 10px;
       border-radius:12px;
-      border:1px solid rgba(255,255,255,.12);
+      border:1px solid var(--border);
       background: rgba(0,0,0,.55);
       backdrop-filter: blur(8px);
       color: var(--text);
@@ -558,8 +622,8 @@
       gap:10px;
     }
     .contribCard{
-      border:1px solid rgba(255,255,255,.08);
-      background: rgba(0,0,0,.22);
+      border:1px solid var(--border);
+      background: var(--card-bg);
       border-radius:12px;
       padding:10px;
       display:flex;
@@ -583,6 +647,10 @@
     .outTable th:last-child{ text-align:right }
     .outTable td:first-child{ text-align:left }
     .outTable td:last-child{ text-align:right }
+    .outTable table th:first-child,
+    .outTable table td:first-child{ text-align:left; }
+    .outTable table th:last-child,
+    .outTable table td:last-child{ text-align:right; }
     .outTable tbody tr:nth-child(odd):not(.sectionRow) td{
       background: rgba(255,255,255,.015);
     }
@@ -619,8 +687,8 @@
     .historySelect select{
       appearance:none;
       border-radius:10px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
       color: var(--text);
       padding:8px 28px 8px 10px;
       font-size:12px;
@@ -636,7 +704,7 @@
       display:inline-flex; align-items:center; gap:6px;
       padding:6px 10px; border-radius:999px;
       border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.16);
+      background: rgba(0,0,0,.18);
       font-size:12px; color:var(--muted);
       font-family:var(--mono);
     }

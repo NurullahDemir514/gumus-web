@@ -64,6 +64,40 @@ const toNum = (s) => {
   };
   const nowTR = () => formatStamp(Date.now());
   const clsNum = (n) => n > 0 ? "pos" : (n < 0 ? "neg" : "muted");
+  let historyFilter = "all";
+
+  const setFieldError = (id, msg) => {
+    const input = $(id);
+    const help = $(`err${id.replace("inp","")}`);
+    if (input) input.classList.add("inputInvalid");
+    if (help) {
+      help.textContent = msg;
+      help.classList.add("isError");
+    }
+  };
+  const clearFieldError = (id) => {
+    const input = $(id);
+    const help = $(`err${id.replace("inp","")}`);
+    if (input) input.classList.remove("inputInvalid");
+    if (help) {
+      help.textContent = "";
+      help.classList.remove("isError");
+    }
+  };
+  const setTradeError = (msg) => {
+    const help = $("tradeHelp");
+    if (help) {
+      help.textContent = msg;
+      help.classList.add("isError");
+    }
+  };
+  const clearTradeError = () => {
+    const help = $("tradeHelp");
+    if (help) {
+      help.textContent = "";
+      help.classList.remove("isError");
+    }
+  };
 
   const dayKey = (ms) => {
     const d = new Date(ms);
@@ -779,18 +813,26 @@ const toNum = (s) => {
         return -1;
       }
 
-      _showTip(cx,cy,i){
-        if (!this.tip) return;
-        const b=this.bars[i];
-        this.tip.innerHTML = `
-          <div class="t1">Varlık • ${b.label}</div>
-          <div class="t2">${fmtCompactTL(b.value)}</div>
-          <div class="t3">${b.subtitle || ""}</div>
-        `;
-        this.tip.classList.add("isOn");
-        this.tip.style.left=`${cx}px`;
-        this.tip.style.top=`${cy}px`;
-      }
+    _showTip(cx,cy,i){
+      if (!this.tip) return;
+      const b=this.bars[i];
+      this.tip.innerHTML = `
+        <div class="t1">Varlık • ${b.label}</div>
+        <div class="t2">${fmtCompactTL(b.value)}</div>
+        <div class="t3">${b.subtitle || ""}</div>
+      `;
+      this.tip.classList.add("isOn");
+      const rect = this.canvas.getBoundingClientRect();
+      const rawX = cx - rect.left + 12;
+      const rawY = cy - rect.top + 10;
+      const tipRect = this.tip.getBoundingClientRect();
+      const maxX = rect.width - tipRect.width - 6;
+      const maxY = rect.height - tipRect.height - 6;
+      const clampedX = Math.max(6, Math.min(rawX, maxX));
+      const clampedY = Math.max(6, Math.min(rawY, maxY));
+      this.tip.style.left=`${clampedX}px`;
+      this.tip.style.top=`${clampedY}px`;
+    }
 
       _hideTip(){
         if (!this.tip) return;
@@ -907,15 +949,23 @@ const toNum = (s) => {
     const summary = $("historySummary");
     const history = loadHistory().slice().sort((a,b)=>b.t-a.t);
     const todayKey = dayKey(Date.now());
-    const today = history.filter(h => dayKey(h.t) === todayKey);
+    const applyFilter = (h) => {
+      if (historyFilter === "silver") return Number.isFinite(h.calc?.inputs?.silverPx);
+      if (historyFilter === "stocks") {
+        return Number.isFinite(h.calc?.inputs?.asPx) || Number.isFinite(h.calc?.inputs?.ucPxOpt);
+      }
+      return true;
+    };
+    const filtered = history.filter(applyFilter);
+    const today = filtered.filter(h => dayKey(h.t) === todayKey);
 
     if (meta){
-      const lastT = history[0]?.t;
+      const lastT = filtered[0]?.t;
       const lastTime = Number.isFinite(lastT) ? `${pad2(new Date(lastT).getHours())}:${pad2(new Date(lastT).getMinutes())}` : "—";
       meta.textContent = `Bugün: ${today.length} kayıt • Son güncelleme: ${lastTime}`;
     }
 
-    if (!history.length){
+    if (!filtered.length){
       list.innerHTML = `
         <div class="historyEmpty">
           <div>Henüz kayıt yok</div>
@@ -926,7 +976,7 @@ const toNum = (s) => {
       return;
     }
 
-    const items = history.map((h) => {
+    const items = filtered.map((h) => {
       const net = Number.isFinite(h.totalProfit) ? h.totalProfit : NaN;
       const netStr = Number.isFinite(net) ? fmtSignedTL(net) : "Net —";
       const d = new Date(h.t);
@@ -1051,10 +1101,20 @@ const toNum = (s) => {
     const asPx = toNum($("inpAselsan").value);
     const ucPx = toNum($("inpUcaym").value);
 
-    if (!Number.isFinite(silverPx) || !Number.isFinite(asPx)) {
-      if (!silent) alert("Gümüş ve ASELSAN zorunlu. Lütfen sayı gir.");
-      return;
+    let hasError = false;
+    if (!Number.isFinite(silverPx)) {
+      setFieldError("inpSilver", "Gümüş kur zorunlu.");
+      hasError = true;
+    } else {
+      clearFieldError("inpSilver");
     }
+    if (!Number.isFinite(asPx)) {
+      setFieldError("inpAselsan", "ASELSAN fiyat zorunlu.");
+      hasError = true;
+    } else {
+      clearFieldError("inpAselsan");
+    }
+    if (hasError) return;
 
     // shift current -> prev
     state.prev = {
@@ -1100,7 +1160,7 @@ const toNum = (s) => {
     const q = toNum($("tradeQty").value);
     const px = toNum($("tradePx").value);
     if (!Number.isFinite(q) || !Number.isFinite(px) || q <= 0) {
-      alert("İşlem için miktar + fiyat gir (pozitif sayı).");
+      setTradeError("İşlem için miktar + fiyat gir (pozitif sayı).");
       return;
     }
 
@@ -1117,11 +1177,11 @@ const toNum = (s) => {
       : saleState.soldG + sign * q;
 
     if (nextSold < 0) {
-      alert("Alış, mevcut satışı sıfırın altına indiremez.");
+      setTradeError("Alış, mevcut satışı sıfırın altına indiremez.");
       return;
     }
     if (nextSold > cfg.max) {
-      alert(`Maksimum satılabilir: ${TL.format(cfg.max)} ${cfg.unit}`);
+      setTradeError(`Maksimum satılabilir: ${TL.format(cfg.max)} ${cfg.unit}`);
       return;
     }
 
@@ -1133,6 +1193,7 @@ const toNum = (s) => {
     }
     saleState.realizedProfit += addProfit;
 
+    clearTradeError();
     $("tradeQty").value = "";
     $("tradePx").value = "";
     save(state);
@@ -1143,7 +1204,7 @@ const toNum = (s) => {
       save(state);
       syncAll(calc);
     } else {
-      alert("İşlem eklendi. Güncel fiyatları girip hesapla.");
+      setTradeError("İşlem eklendi. Güncel fiyatları girip hesapla.");
     }
   }
 
@@ -1157,6 +1218,9 @@ const toNum = (s) => {
     $("inpSilver").value = "";
     $("inpAselsan").value = "";
     $("inpUcaym").value = "";
+    clearFieldError("inpSilver");
+    clearFieldError("inpAselsan");
+    clearTradeError();
     $("tradeQty").value = "";
     $("tradePx").value = "";
     $("totalProfit").textContent = "—";
@@ -1180,6 +1244,7 @@ const toNum = (s) => {
     tradeClear.addEventListener("click", () => {
       $("tradeQty").value = "";
       $("tradePx").value = "";
+      clearTradeError();
     });
   }
   bindPillGroup("assetGroup");
@@ -1198,9 +1263,12 @@ const toNum = (s) => {
         if (btn.getAttribute("aria-disabled") === "true") return;
         historyFilters.querySelectorAll(".chipBtn").forEach((b) => b.classList.remove("isActive"));
         btn.classList.add("isActive");
+        historyFilter = btn.dataset.filter || "all";
+        renderHistoryList();
       });
     });
   }
+
 
   const stickyBar = $("stickyBar");
   const slider = $("slider");
@@ -1221,14 +1289,50 @@ const toNum = (s) => {
   if (slider) {
     const panels = Array.from(slider.querySelectorAll(".panel"));
     const currentIndex = () => Math.round(slider.scrollLeft / slider.clientWidth);
+    const dotsWrap = $("sliderDots");
+    const dots = dotsWrap ? Array.from(dotsWrap.querySelectorAll(".dot")) : [];
+    const setActiveDot = (idx) => {
+      dots.forEach((dot, i) => {
+        const active = i === idx;
+        dot.classList.toggle("isActive", active);
+        dot.setAttribute("aria-selected", active ? "true" : "false");
+      });
+    };
     const goTo = (idx) => {
       const clamped = Math.max(0, Math.min(idx, panels.length - 1));
       slider.scrollTo({ left: clamped * slider.clientWidth, behavior: "smooth" });
+      setActiveDot(clamped);
     };
     const prev = $("sliderPrev");
     const next = $("sliderNext");
     if (prev) prev.addEventListener("click", () => goTo(currentIndex() - 1));
     if (next) next.addEventListener("click", () => goTo(currentIndex() + 1));
+    dots.forEach((dot) => {
+      dot.addEventListener("click", () => {
+        const idx = Number(dot.dataset.index);
+        if (Number.isFinite(idx)) goTo(idx);
+      });
+    });
+    setActiveDot(currentIndex());
+
+    let rafId = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        setActiveDot(currentIndex());
+      });
+    };
+    slider.addEventListener("scroll", onScroll, { passive: true });
+
+    slider.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goTo(currentIndex() - 1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goTo(currentIndex() + 1);
+      }
+    });
 
     let isDown = false;
     let startX = 0;
@@ -1271,10 +1375,48 @@ const toNum = (s) => {
       }
     } catch {}
   }
+  const formatInput = (id, fmt) => {
+    const el = $(id);
+    if (!el) return;
+    const n = toNum(el.value);
+    if (Number.isFinite(n)) {
+      el.value = fmt.format(n);
+    }
+  };
   // input değişince kaydet
   ["inpSilver","inpAselsan","inpUcaym"].forEach(id => {
     $(id).addEventListener("input", saveInputs);
   });
+  ["inpSilver","inpAselsan"].forEach(id => {
+    $(id).addEventListener("input", () => clearFieldError(id));
+  });
+  ["tradeQty","tradePx"].forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener("input", clearTradeError);
+  });
+  ["inpSilver","inpAselsan","inpUcaym"].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        $("btnCalc").click();
+      }
+    });
+  });
+  ["tradeQty","tradePx"].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        $("btnAddTrade").click();
+      }
+    });
+  });
+  $("inpSilver").addEventListener("blur", () => formatInput("inpSilver", TL4));
+  $("inpAselsan").addEventListener("blur", () => formatInput("inpAselsan", TL));
+  $("inpUcaym").addEventListener("blur", () => formatInput("inpUcaym", TL));
   // ilk açılışta yükle
   loadInputs();
 

@@ -21,10 +21,12 @@
               <div>
                 <label>Gümüş kur (₺/g)</label>
                 <input id="inpSilver" inputmode="decimal" placeholder="örn: 125.7351" />
+                <div class="helper" id="errSilver"></div>
               </div>
               <div>
                 <label>ASELSAN fiyat (₺)</label>
                 <input id="inpAselsan" inputmode="decimal" placeholder="örn: 302.5" />
+                <div class="helper" id="errAselsan"></div>
               </div>
               <div>
                 <label>UCAYM fiyat (opsiyonel)</label>
@@ -72,6 +74,7 @@
               <button class="btn" id="btnAddTrade">Kaydet</button>
               <button class="linkBtn" id="btnTradeClear" type="button">Temizle</button>
             </div>
+            <div class="helper" id="tradeHelp"></div>
           </div>
         </div>
       </div>
@@ -79,65 +82,8 @@
 
     <div class="sliderWrap">
       <button class="navBtn navBtn--prev" id="sliderPrev" aria-label="Önceki panel">‹</button>
-      <div class="slider" id="slider">
-        <section class="panel">
-          <div class="panelInner">
-            <div class="panelHd">
-              <div>
-                <div class="k">Grafikler</div>
-                <div class="mini">Net kâr + toplam değer</div>
-              </div>
-            </div>
-            <div class="panelBody">
-              <div class="chartRow">
-                <div class="chartCard">
-                  <div class="chartTitle">
-                    Net Kâr Grafiği
-                    <span class="mini" id="chartCountProfit">(gösterilen 0 / ham 0)</span>
-                    <span class="chartBadge" id="chartBadgeProfit">—</span>
-                  </div>
-                  <div class="chartWrap">
-                    <canvas class="chartCanvas" id="chartProfit"></canvas>
-                    <div class="chartTip" id="tipProfit"></div>
-                  </div>
-                </div>
-                <div class="chartCard">
-                  <div class="chartTitle">
-                    Toplam Portföy Değeri
-                    <span class="mini" id="chartCountValue">(gösterilen 0 / ham 0)</span>
-                    <span class="chartBadge" id="chartBadgeValue">—</span>
-                  </div>
-                  <div class="chartWrap">
-                    <canvas class="chartCanvas" id="chartValue"></canvas>
-                    <div class="chartTip" id="tipValue"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panelInner">
-            <div class="panelHd">
-              <div>
-                <div class="k">Girdi Akışı</div>
-                <div class="mini" id="historyMeta">Bugün: 0 kayıt • Son güncelleme: —</div>
-              </div>
-              <div class="chipGroup" id="historyFilters">
-                <button class="chipBtn isActive" data-filter="all">Tümü</button>
-                <button class="chipBtn" data-filter="silver" aria-disabled="true">Gümüş</button>
-                <button class="chipBtn" data-filter="stocks" aria-disabled="true">Hisse</button>
-              </div>
-            </div>
-            <div class="panelBody">
-              <div class="historyList" id="historyList"></div>
-              <div class="historySummary" id="historySummary"></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
+      <div class="slider" id="slider" tabindex="0" aria-label="Panel kaydirici">
+        <section class="panel panel--summary">
           <div class="panelInner">
             <div class="panelHd">
               <div>
@@ -251,8 +197,70 @@
             </div>
           </div>
         </section>
+
+        <section class="panel">
+          <div class="panelInner">
+            <div class="panelHd">
+              <div>
+                <div class="k">Grafikler</div>
+                <div class="mini">Net kâr + toplam değer</div>
+              </div>
+            </div>
+            <div class="panelBody">
+              <div class="chartRow">
+                <div class="chartCard">
+                  <div class="chartTitle">
+                    Net Kâr Grafiği
+                    <span class="mini" id="chartCountProfit">(gösterilen 0 / ham 0)</span>
+                    <span class="chartBadge" id="chartBadgeProfit">—</span>
+                  </div>
+                  <div class="chartWrap">
+                    <canvas class="chartCanvas" id="chartProfit"></canvas>
+                    <div class="chartTip" id="tipProfit"></div>
+                  </div>
+                </div>
+                <div class="chartCard">
+                  <div class="chartTitle">
+                    Toplam Portföy Değeri
+                    <span class="mini" id="chartCountValue">(gösterilen 0 / ham 0)</span>
+                    <span class="chartBadge" id="chartBadgeValue">—</span>
+                  </div>
+                  <div class="chartWrap">
+                    <canvas class="chartCanvas" id="chartValue"></canvas>
+                    <div class="chartTip" id="tipValue"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panelInner">
+            <div class="panelHd">
+              <div>
+                <div class="k">Girdi Akışı</div>
+                <div class="mini" id="historyMeta">Bugün: 0 kayıt • Son güncelleme: —</div>
+              </div>
+              <div class="chipGroup" id="historyFilters">
+                <button class="chipBtn isActive" data-filter="all">Tümü</button>
+                <button class="chipBtn" data-filter="silver" aria-disabled="true">Gümüş</button>
+                <button class="chipBtn" data-filter="stocks" aria-disabled="true">Hisse</button>
+              </div>
+            </div>
+            <div class="panelBody">
+              <div class="historyList" id="historyList"></div>
+              <div class="historySummary" id="historySummary"></div>
+            </div>
+          </div>
+        </section>
       </div>
       <button class="navBtn navBtn--next" id="sliderNext" aria-label="Sonraki panel">›</button>
+      <div class="sliderDots" id="sliderDots" role="tablist" aria-label="Paneller">
+        <button class="dot isActive" role="tab" aria-selected="true" data-index="0" aria-label="Panel 1"></button>
+        <button class="dot" role="tab" aria-selected="false" data-index="1" aria-label="Panel 2"></button>
+        <button class="dot" role="tab" aria-selected="false" data-index="2" aria-label="Panel 3"></button>
+      </div>
     </div>
   </div>
 
