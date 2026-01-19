@@ -265,6 +265,7 @@
       border:1px solid rgba(255,255,255,.08);
     }
     .chartWrap--bars{ height:170px; }
+    .chartWrap--cards{ height:auto; padding:12px; }
     .chartCanvas{
       width:100%;
       height:100%;
@@ -292,6 +293,33 @@
     .chartTip .t1{ color: var(--muted); font-size:11px; margin-bottom:6px; }
     .chartTip .t2{ font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight:900; font-size:13px; }
     .chartTip .t3{ color: var(--muted); font-size:11px; margin-top:4px; }
+    .contribCards{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap:10px;
+    }
+    .contribCard{
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.22);
+      border-radius:12px;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .contribCard .lbl{ font-size:11px; color:var(--muted); letter-spacing:.2px; }
+    .contribCard .val{ font-family: var(--mono); font-size:14px; font-weight:800; }
+    .contribBar{
+      height:6px;
+      border-radius:999px;
+      background: rgba(255,255,255,.08);
+      overflow:hidden;
+    }
+    .contribBar > span{
+      display:block;
+      height:100%;
+      border-radius:999px;
+    }
     .outTable th{background: rgba(106,169,255,.10); text-align:left}
     .outTable th:last-child{ text-align:right }
     .outTable td:first-child{ text-align:left }

@@ -49,7 +49,9 @@ const toNum = (s) => {
   const fmtPct = (n) => Number.isFinite(n) ? `%${TL.format(n)}` : "—";
   const HISTORY_KEY = "onur_portfolio_history_v1";
   const HISTORY_SELECT_KEY = "onur_portfolio_history_select_v1";
-  const MAX_HISTORY = 100;
+  const MAX_HISTORY = 2000;
+  const MAX_CHART_POINTS = 120;
+  const DAY_AVG_THRESHOLD = 5;
   const monthsTR = [
     "Ocak","Şubat","Mart","Nisan","Mayıs","Haziran",
     "Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"
@@ -62,6 +64,56 @@ const toNum = (s) => {
   };
   const nowTR = () => formatStamp(Date.now());
   const clsNum = (n) => n > 0 ? "pos" : (n < 0 ? "neg" : "muted");
+
+  const dayKey = (ms) => {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  };
+
+  const downsampleDaily = (points, { threshold, maxPoints }) => {
+    if (!points.length) return [];
+    const out = [];
+    let i = 0;
+    while (i < points.length){
+      const key = dayKey(points[i].t);
+      const bucket = [];
+      while (i < points.length && dayKey(points[i].t) === key){
+        bucket.push(points[i]);
+        i += 1;
+      }
+      if (bucket.length <= threshold){
+        out.push(...bucket);
+      } else {
+        const ys = bucket.map(p => p.y);
+        const sum = ys.reduce((a,b)=>a+b,0);
+        const avgY = sum / bucket.length;
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const lastT = bucket[bucket.length-1].t;
+        out.push({
+          t: lastT,
+          y: avgY,
+          meta: { n: bucket.length, min: minY, max: maxY, kind: "dayAvg" }
+        });
+      }
+    }
+
+    if (out.length <= maxPoints) return out;
+    const sampled = [];
+    for (let j=0; j<maxPoints; j++){
+      const idx = Math.round(j * (out.length - 1) / (maxPoints - 1));
+      sampled.push(out[idx]);
+    }
+    return sampled;
+  };
+
+  const buildSeries = (history, field) => {
+    const points = history
+      .map(h => ({ t: h.t, y: h[field], meta: null }))
+      .filter(p => Number.isFinite(p.y))
+      .sort((a,b)=>a.t-b.t);
+    return downsampleDaily(points, { threshold: DAY_AVG_THRESHOLD, maxPoints: MAX_CHART_POINTS });
+  };
 
   // ====== STATE ======
   const KEY = "onur_portfolio_v3_single_table_center";
@@ -460,11 +512,16 @@ const toNum = (s) => {
         const title = this.opts.title || "—";
         const val = (this.opts.valueFmt || ((v)=>fmtCompactTL(v)))(p.y);
         const time = fmtTimeTR(p.t);
+        const meta = p.meta;
+        const extra = (meta && meta.kind === "dayAvg")
+          ? `<div class="t3">Bu gün: ${meta.n} kayıt • Ortalama</div>
+             <div class="t3">min ${fmtCompactTL(meta.min)} • max ${fmtCompactTL(meta.max)}</div>`
+          : `<div class="t3">${i+1}/${this.series.length}</div>`;
 
         this.tip.innerHTML = `
           <div class="t1">${title} • ${time}</div>
           <div class="t2">${val}</div>
-          <div class="t3">${i+1}/${this.series.length}</div>
+          ${extra}
         `;
 
         this.tip.classList.add("isOn");
@@ -818,18 +875,36 @@ const toNum = (s) => {
   })();
 
   /* ---------- renderCharts (premium) ---------- */
-  let _chartProfitV2, _chartValueV2, _chartBarsV2;
+  let _chartProfitV2, _chartValueV2;
+
+  function renderCardsContribution(container, items){
+    if (!container) return;
+    if (!items.length){
+      container.innerHTML = "<div class=\"muted\">Veri yok</div>";
+      return;
+    }
+    const sumAbs = items.reduce((acc, it) => acc + Math.abs(it.value), 0) || 1;
+    container.innerHTML = items.map((it) => {
+      const pct = (Math.abs(it.value) / sumAbs) * 100;
+      const color = it.value >= 0 ? "var(--good)" : "var(--bad)";
+      return `
+        <div class="contribCard">
+          <div class="lbl">${it.label}</div>
+          <div class="val" style="color:${color}">${fmtSignedTL(it.value)}</div>
+          <div class="mini">%${TL.format(pct)} pay</div>
+          <div class="contribBar"><span style="width:${pct}%; background:${color};"></span></div>
+        </div>
+      `;
+    }).join("");
+  }
 
   function renderCharts(calc){
     const history = loadHistory();
 
-    const profitSeries = history
-      .map(h => ({ t: h.t, y: h.totalProfit }))
-      .filter(p => Number.isFinite(p.y));
-
-    const valueSeries = history
-      .map(h => ({ t: h.t, y: h.totalValue }))
-      .filter(p => Number.isFinite(p.y));
+    const profitSeries = buildSeries(history, "totalProfit");
+    const valueSeries = buildSeries(history, "totalValue");
+    const rawProfitCount = history.filter(h => Number.isFinite(h.totalProfit)).length;
+    const rawValueCount = history.filter(h => Number.isFinite(h.totalValue)).length;
 
     if (!_chartProfitV2){
       _chartProfitV2 = new ChartsV2.LineChart($("chartProfit"), $("tipProfit"), {
@@ -844,11 +919,10 @@ const toNum = (s) => {
         dynamicColor: false,
         valueFmt: (v)=>fmtTL(v)
       });
-      _chartBarsV2 = new ChartsV2.BarsChart($("chartBars"), $("tipBars"));
     }
 
-    $("chartCountProfit").textContent = profitSeries.length ? `(${profitSeries.length} veri)` : "(0 veri)";
-    $("chartCountValue").textContent  = valueSeries.length ? `(${valueSeries.length} veri)` : "(0 veri)";
+    $("chartCountProfit").textContent = `(gösterilen ${profitSeries.length} / ham ${rawProfitCount})`;
+    $("chartCountValue").textContent  = `(gösterilen ${valueSeries.length} / ham ${rawValueCount})`;
 
     const setBadge = (el, series, fmtVal) => {
       if (!el) return;
@@ -870,11 +944,12 @@ const toNum = (s) => {
     _chartValueV2.setSeries(valueSeries);
 
     const uc = Number.isFinite(calc.ucaym.profit) ? calc.ucaym.profit : 0;
-    _chartBarsV2.setBars([
-      { label: "Gümüş", value: calc.silver.net, subtitle: "Net kâr katkısı" },
-      { label: "ASEL",  value: calc.aselsan.profit, subtitle: "Net kâr katkısı" },
-      { label: "UCAYM", value: uc, subtitle: calc.ucaym.has ? "Net kâr katkısı" : "Fiyat yok (0)" }
-    ]);
+    const contribItems = [
+      { label: "Gümüş", value: calc.silver.net },
+      { label: "ASEL",  value: calc.aselsan.profit },
+      { label: "UCAYM", value: uc }
+    ];
+    renderCardsContribution($("chartCards"), contribItems);
   }
 
   function syncAll(calc){
