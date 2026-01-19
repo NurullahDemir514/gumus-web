@@ -9,6 +9,7 @@
       --accent:#6aa9ff;
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --r:18px;
+      --sticky-h: 140px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
@@ -19,22 +20,15 @@
         radial-gradient(1200px 600px at 20% 0%, rgba(106,169,255,.12), transparent 60%),
         radial-gradient(1000px 600px at 90% 20%, rgba(65,209,125,.10), transparent 55%),
         var(--bg);
-      height:100vh; /* 100vh */
-      overflow:hidden; /* single-screen dashboard feel */
+      height:100vh;
+      overflow:hidden;
     }
 
-    /* full-bleed layout, only 20px side margins */
-    .shell{
+    .page{
       height:100vh;
-      padding:18px 20px; /* only 20px margin left/right */
       display:flex;
       flex-direction:column;
-      gap:12px;
-    }
-
-    header{
-      display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;
-      padding:4px 2px;
+      overflow:hidden;
     }
     h1{margin:0; font-size:20px; letter-spacing:.2px}
     .sub{color:var(--muted); font-size:12px; margin-top:6px}
@@ -46,28 +40,163 @@
       font-family:var(--mono);
     }
 
-    /* horizontal slides */
-    .main{
+    .stickyBar{
+      position:sticky;
+      top:0;
+      z-index:50;
+      width:100vw;
+      padding:16px 20px;
+      background: rgba(12,16,24,.72);
+      backdrop-filter: blur(12px);
+      border-bottom:0;
+      transition: box-shadow .2s ease;
+    }
+    .stickyBar.isScrolled{
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .barTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .barTitleMain{
+      font-size:16px;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+    .barGrid{
+      display:grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap:16px;
+    }
+    .barTitle{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:8px;
+      letter-spacing:.3px;
+      text-transform:uppercase;
+    }
+    .barPanel{
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      padding:12px;
+      background: rgba(0,0,0,.22);
+    }
+    .linkBtn{
+      width:auto;
+      padding:0;
+      background:none;
+      border:none;
+      color:var(--muted);
+      text-decoration:underline;
+      cursor:pointer;
+      font-size:12px;
+      align-self:center;
+    }
+
+    .sliderWrap{
+      position:relative;
+      flex:1;
+      min-height:0;
+      width:100vw;
+    }
+    .slider{
+      height:100%;
+      display:flex;
+      overflow-x:auto;
+      scroll-snap-type:x mandatory;
+      scroll-behavior:smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    .panel{
+      flex:0 0 100vw;
+      min-width:0;
+      scroll-snap-align:start;
+      padding:0 20px 20px;
+    }
+    .panelInner{
+      height:100%;
+      min-height:calc(100vh - var(--sticky-h));
+      border:1px solid rgba(255,255,255,.06);
+      border-radius: var(--r);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 70%), var(--card);
+      box-shadow: var(--shadow);
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .panelHd{
+      padding:14px 16px 12px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .panelBody{
+      padding:14px 16px 18px;
       flex:1;
       min-height:0;
       display:flex;
+      flex-direction:column;
       gap:12px;
-      overflow-x:auto;
-      scroll-snap-type: x mandatory;
-      scroll-behavior:smooth;
     }
-    .slide{
-      flex:0 0 auto;
-      min-width:0;
-      scroll-snap-align:start;
+    .chartRow{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:12px;
+      flex:1;
+      min-height:0;
     }
-    .slide--input{width:calc((100% - 12px) * 0.44)}
-    .slide--summary{width:calc((100% - 12px) * 0.56)}
-    .slide--charts{width:calc((100% - 12px) * 0.56)}
-    .slide--history{width:calc((100% - 12px) * 0.56)}
+    .chartRow .chartCard{
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .chartRow .chartWrap{
+      flex:1;
+      height:auto;
+    }
+    .panelBody .chartWrap{
+      flex:1;
+      height:auto;
+    }
+    .panelBadge{
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.25);
+    }
+    .navBtn{
+      position:absolute;
+      top:50%;
+      transform: translateY(-50%);
+      z-index:20;
+      width:36px;
+      height:36px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.35);
+      color:var(--text);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:18px;
+    }
+    .navBtn--prev{ left:10px; }
+    .navBtn--next{ right:10px; }
     @media (max-width: 980px){
       body{overflow:auto}
-      .shell{height:auto; min-height:100vh}
+      .page{height:auto; min-height:100vh}
+      .barGrid{grid-template-columns:1fr}
+      .chartRow{grid-template-columns:1fr}
+      .navBtn{display:none}
     }
 
     .card{
@@ -220,18 +349,6 @@
       line-height:1.4;
       color:var(--text);
     }
-    .slide--history{
-      display:flex;
-      flex-direction:column;
-      min-height:0;
-    }
-    .slide--history .bd{
-      flex:1;
-      min-height:0;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-    }
     .historyList{
       position:relative;
       flex:1;
@@ -380,35 +497,6 @@
       font-size:12px;
       color:var(--muted);
       margin-bottom:8px;
-    }
-    .slide--charts .bd{height:100%}
-    .slide--charts .chartGrid{
-      height:100%;
-      grid-template-rows: 1fr 1fr;
-    }
-    .slide--charts .chartCard{
-      display:flex;
-      flex-direction:column;
-      min-height:0;
-    }
-    .slide--charts .chartWrap{
-      flex:1;
-      height:auto;
-    }
-    .slide--charts{
-      display:flex;
-      flex-direction:column;
-      min-height:0;
-    }
-    .slide--charts .bd{
-      flex:1;
-      min-height:0;
-    }
-    .slide--charts .chartGrid{
-      gap:12px;
-    }
-    .slide--charts .chartCard{
-      overflow:hidden;
     }
     .chartBadge{
       margin-left:8px;

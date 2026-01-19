@@ -152,6 +152,7 @@ const toNum = (s) => {
   let state = normalizeState(load());
   let lastCalc = null;
 
+
   // ====== CALC ======
   function compute(silverPx, asPx, ucPxOpt) {
     const soldG = state.sales.silver.soldG;
@@ -1174,6 +1175,13 @@ const toNum = (s) => {
   $("btnCalc").addEventListener("click", calcAndPersist);
   $("btnAddTrade").addEventListener("click", addTrade);
   $("btnReset").addEventListener("click", resetAll);
+  const tradeClear = $("btnTradeClear");
+  if (tradeClear) {
+    tradeClear.addEventListener("click", () => {
+      $("tradeQty").value = "";
+      $("tradePx").value = "";
+    });
+  }
   bindPillGroup("assetGroup");
   bindPillGroup("typeGroup");
   const historySelect = $("summaryHistorySelect");
@@ -1192,6 +1200,53 @@ const toNum = (s) => {
         btn.classList.add("isActive");
       });
     });
+  }
+
+  const stickyBar = $("stickyBar");
+  const slider = $("slider");
+  const setStickyHeight = () => {
+    if (stickyBar) {
+      document.documentElement.style.setProperty("--sticky-h", `${stickyBar.offsetHeight}px`);
+    }
+  };
+  const updateStickyShadow = () => {
+    if (!stickyBar) return;
+    stickyBar.classList.toggle("isScrolled", window.scrollY > 10);
+  };
+  window.addEventListener("resize", setStickyHeight);
+  window.addEventListener("scroll", updateStickyShadow);
+  setStickyHeight();
+  updateStickyShadow();
+
+  if (slider) {
+    const panels = Array.from(slider.querySelectorAll(".panel"));
+    const currentIndex = () => Math.round(slider.scrollLeft / slider.clientWidth);
+    const goTo = (idx) => {
+      const clamped = Math.max(0, Math.min(idx, panels.length - 1));
+      slider.scrollTo({ left: clamped * slider.clientWidth, behavior: "smooth" });
+    };
+    const prev = $("sliderPrev");
+    const next = $("sliderNext");
+    if (prev) prev.addEventListener("click", () => goTo(currentIndex() - 1));
+    if (next) next.addEventListener("click", () => goTo(currentIndex() + 1));
+
+    let isDown = false;
+    let startX = 0;
+    let startScroll = 0;
+    slider.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      isDown = true;
+      startX = e.clientX;
+      startScroll = slider.scrollLeft;
+      slider.setPointerCapture(e.pointerId);
+    });
+    slider.addEventListener("pointermove", (e) => {
+      if (!isDown) return;
+      const dx = e.clientX - startX;
+      slider.scrollLeft = startScroll - dx;
+    });
+    slider.addEventListener("pointerup", () => { isDown = false; });
+    slider.addEventListener("pointercancel", () => { isDown = false; });
   }
 
 

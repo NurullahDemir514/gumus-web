@@ -7,59 +7,40 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="shell">
-    <header>
-      <div>
-        <h1>Portföy</h1>
+  <div class="page">
+    <div class="stickyBar" id="stickyBar">
+      <div class="barTop">
+        <div class="barTitleMain">Portföy Kontrol</div>
+        <div class="pill" id="nowPill">—</div>
       </div>
-      <div class="pill" id="nowPill">—</div>
-    </header>
-
-    <div class="main">
-      <!-- LEFT SIDE -->
-      <section class="card slide slide--input">
-        <div class="hd">
-          <div>
-            <div class="k">Girdiler</div>
+      <div class="barGrid">
+        <div class="barCol">
+          <div class="barTitle">Kur Girişi</div>
+          <div class="barPanel">
+            <div class="row3">
+              <div>
+                <label>Gümüş kur (₺/g)</label>
+                <input id="inpSilver" inputmode="decimal" placeholder="örn: 125.7351" />
+              </div>
+              <div>
+                <label>ASELSAN fiyat (₺)</label>
+                <input id="inpAselsan" inputmode="decimal" placeholder="örn: 302.5" />
+              </div>
+              <div>
+                <label>UCAYM fiyat (opsiyonel)</label>
+                <input id="inpUcaym" inputmode="decimal" placeholder="örn: 19.25 (boş = hesap dışı)" />
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn" id="btnCalc">Kurları Kaydet</button>
+              <button class="btn2" id="btnReset">Sıfırla</button>
+            </div>
           </div>
-          <div class="tag" id="prevTag" style="display:none">—</div>
         </div>
-        <div class="bd" style="display:flex; flex-direction:column; gap:12px; min-height:0">
-          <div class="row3">
-            <div>
-              <label>Gümüş kur (₺/g)</label>
-              <input id="inpSilver" inputmode="decimal" placeholder="örn: 125.7351" />
-            </div>
-            <div>
-              <label>ASELSAN fiyat (₺)</label>
-              <input id="inpAselsan" inputmode="decimal" placeholder="örn: 302.5" />
-            </div>
-            <div>
-              <label>UCAYM fiyat (opsiyonel)</label>
-              <input id="inpUcaym" inputmode="decimal" placeholder="örn: 19.25 (boş = hesap dışı)" />
-            </div>
-          </div>
-          <div>
-            <button class="btn" id="btnCalc">Hesapla / Kaydet</button>
-          </div>
 
-          <div class="bigline">
-            <div>
-              <div class="lbl">Toplam portföy anlık net kâr</div>
-              <div class="mini" id="totDiffLine">önceki: —</div>
-            </div>
-            <div class="val" id="totalProfit">—</div>
-          </div>
-
-          <div class="row">
-            <div class="badge" id="stampPill">—</div>
-            <div class="badge" id="quickBadge">—</div>
-          </div>
-
-          <div class="hr"></div>
-
-          <div>
-            <label>İşlem Ekle (alış/satış)</label>
+        <div class="barCol">
+          <div class="barTitle">İşlem Girişi</div>
+          <div class="barPanel">
             <div class="row">
               <div>
                 <label class="mini">Varlık</label>
@@ -88,185 +69,190 @@
               </div>
             </div>
             <div class="row" style="margin-top:10px">
-              <button class="btn2" id="btnAddTrade">İşlemi Ekle</button>
-              <button class="btnDanger" id="btnReset">Sıfırla</button>
-            </div>
-          </div>
-
-          <div class="hr"></div>
-
-          <div>
-            <label>Portföy sabitleri</label>
-            <div class="note">
-              Gümüş: toplam alım <span class="mono">216 g</span> • ort. maliyet <span class="mono">91,8105 ₺/g</span><br/>
-              ASELSAN: <span class="mono">67</span> adet • maliyet <span class="mono">206,73 ₺</span><br/>
-              UCAYM: <span class="mono">80</span> lot • maliyet <span class="mono">18,00 ₺</span><br/>
-              <span class="mini">“Satmasaydım” kısmı teoriktir (realize değil).</span>
-            </div>
-          </div>
-
-          
-        </div>
-      </section>
-
-      <!-- RIGHT SIDE OUTPUT (placed at far right) -->
-      <section class="card right slide slide--summary">
-        <div class="hd">
-          <div>
-            <div class="k">Özet</div>
-          </div>
-          <div class="actions">
-            <div class="historySelect">
-              <select id="summaryHistorySelect">
-                <option value="latest">Güncel</option>
-              </select>
+              <button class="btn" id="btnAddTrade">Kaydet</button>
+              <button class="linkBtn" id="btnTradeClear" type="button">Temizle</button>
             </div>
           </div>
         </div>
-        <div class="bd" style="min-height:0; display:flex; flex-direction:column; gap:10px">
-          <div class="outGrid">
-            <div class="outTable">
-            <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
-              <div class="k">Gümüş</div>
-            </div>
-            <div class="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width:62%">Alan</th>
-                    <th style="width:38%">Tutar</th>
-                  </tr>
-                </thead>
-                <tbody id="outSilver">
-                  <tr><td colspan="2" class="muted">—</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+      </div>
+    </div>
 
-            <div class="outTable">
-            <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
-              <div class="k">ASELSAN</div>
-            </div>
-            <div class="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width:62%">Alan</th>
-                    <th style="width:38%">Tutar</th>
-                  </tr>
-                </thead>
-                <tbody id="outAselsan">
-                  <tr><td colspan="2" class="muted">—</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-            <div class="outTable">
-            <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
-              <div class="k">UCAYM</div>
-            </div>
-            <div class="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width:62%">Alan</th>
-                    <th style="width:38%">Tutar</th>
-                  </tr>
-                </thead>
-                <tbody id="outUcaym">
-                  <tr><td colspan="2" class="muted">—</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          </div>
-
-          <div class="outTable">
-            <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
-              <div class="k">Toplam</div>
-            </div>
-            <div class="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width:62%">Alan</th>
-                    <th style="width:38%">Tutar</th>
-                  </tr>
-                </thead>
-                <tbody id="outSummary">
-                  <tr><td colspan="2" class="muted">—</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div class="chartCard">
-            <div class="chartTitle">Varlık Net Kâr Katkısı</div>
-            <div class="chartWrap chartWrap--bars chartWrap--cards">
-              <div class="contribCards" id="chartCards"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="card slide slide--charts">
-        <div class="hd">
-          <div>
-            <div class="k">Grafikler</div>
-            <div class="mini">Son 100 giriş</div>
-          </div>
-        </div>
-        <div class="bd" style="min-height:0">
-          <div class="chartGrid">
-
-            <div class="chartCard">
-              <div class="chartTitle">
-                Toplam Net Kâr
-                <span class="mini" id="chartCountProfit"></span>
-                <span class="chartBadge" id="chartBadgeProfit"></span>
-              </div>
-              <div class="chartWrap">
-                <canvas class="chartCanvas" id="chartProfit"></canvas>
-                <div class="chartTip" id="tipProfit"></div>
+    <div class="sliderWrap">
+      <button class="navBtn navBtn--prev" id="sliderPrev" aria-label="Önceki panel">‹</button>
+      <div class="slider" id="slider">
+        <section class="panel">
+          <div class="panelInner">
+            <div class="panelHd">
+              <div>
+                <div class="k">Grafikler</div>
+                <div class="mini">Net kâr + toplam değer</div>
               </div>
             </div>
-
-            <div class="chartCard">
-              <div class="chartTitle">
-                Toplam Değer
-                <span class="mini" id="chartCountValue"></span>
-                <span class="chartBadge" id="chartBadgeValue"></span>
-              </div>
-              <div class="chartWrap">
-                <canvas class="chartCanvas" id="chartValue"></canvas>
-                <div class="chartTip" id="tipValue"></div>
+            <div class="panelBody">
+              <div class="chartRow">
+                <div class="chartCard">
+                  <div class="chartTitle">
+                    Net Kâr Grafiği
+                    <span class="mini" id="chartCountProfit">(gösterilen 0 / ham 0)</span>
+                    <span class="chartBadge" id="chartBadgeProfit">—</span>
+                  </div>
+                  <div class="chartWrap">
+                    <canvas class="chartCanvas" id="chartProfit"></canvas>
+                    <div class="chartTip" id="tipProfit"></div>
+                  </div>
+                </div>
+                <div class="chartCard">
+                  <div class="chartTitle">
+                    Toplam Portföy Değeri
+                    <span class="mini" id="chartCountValue">(gösterilen 0 / ham 0)</span>
+                    <span class="chartBadge" id="chartBadgeValue">—</span>
+                  </div>
+                  <div class="chartWrap">
+                    <canvas class="chartCanvas" id="chartValue"></canvas>
+                    <div class="chartTip" id="tipValue"></div>
+                  </div>
+                </div>
               </div>
             </div>
-
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="card slide slide--history">
-        <div class="hd">
-          <div>
-            <div class="k">Girdi Akışı</div>
-            <div class="mini" id="historyMeta">Bugün: 0 kayıt • Son güncelleme: —</div>
-          </div>
-          <div class="actions">
-            <div class="chipGroup" id="historyFilters">
-              <button class="chipBtn isActive" data-filter="all">Tümü</button>
-              <button class="chipBtn" data-filter="silver" aria-disabled="true">Gümüş</button>
-              <button class="chipBtn" data-filter="stocks" aria-disabled="true">Hisse</button>
+        <section class="panel">
+          <div class="panelInner">
+            <div class="panelHd">
+              <div>
+                <div class="k">Girdi Akışı</div>
+                <div class="mini" id="historyMeta">Bugün: 0 kayıt • Son güncelleme: —</div>
+              </div>
+              <div class="chipGroup" id="historyFilters">
+                <button class="chipBtn isActive" data-filter="all">Tümü</button>
+                <button class="chipBtn" data-filter="silver" aria-disabled="true">Gümüş</button>
+                <button class="chipBtn" data-filter="stocks" aria-disabled="true">Hisse</button>
+              </div>
+            </div>
+            <div class="panelBody">
+              <div class="historyList" id="historyList"></div>
+              <div class="historySummary" id="historySummary"></div>
             </div>
           </div>
-        </div>
-        <div class="bd" style="min-height:0">
-          <div class="historyList" id="historyList"></div>
-          <div class="historySummary" id="historySummary"></div>
-        </div>
-      </section>
+        </section>
+
+        <section class="panel">
+          <div class="panelInner">
+            <div class="panelHd">
+              <div>
+                <div class="k">Günlük Özet</div>
+                <div class="mini">Genel görünüm</div>
+              </div>
+              <div class="historySelect">
+                <select id="summaryHistorySelect">
+                  <option value="latest">Güncel</option>
+                </select>
+              </div>
+            </div>
+            <div class="panelBody" style="display:flex; flex-direction:column; gap:12px; min-height:0">
+              <div class="bigline">
+                <div>
+                  <div class="lbl">Toplam portföy anlık net kâr</div>
+                  <div class="mini" id="totDiffLine">önceki: —</div>
+                </div>
+                <div class="val" id="totalProfit">—</div>
+              </div>
+              <div class="row">
+                <div class="badge" id="stampPill">—</div>
+                <div class="badge" id="quickBadge">—</div>
+                <div class="tag" id="prevTag" style="display:none">—</div>
+              </div>
+
+              <div class="outGrid">
+                <div class="outTable">
+                  <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
+                    <div class="k">Gümüş</div>
+                  </div>
+                  <div class="tableWrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style="width:62%">Alan</th>
+                          <th style="width:38%">Tutar</th>
+                        </tr>
+                      </thead>
+                      <tbody id="outSilver">
+                        <tr><td colspan="2" class="muted">—</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="outTable">
+                  <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
+                    <div class="k">ASELSAN</div>
+                  </div>
+                  <div class="tableWrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style="width:62%">Alan</th>
+                          <th style="width:38%">Tutar</th>
+                        </tr>
+                      </thead>
+                      <tbody id="outAselsan">
+                        <tr><td colspan="2" class="muted">—</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="outTable">
+                  <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
+                    <div class="k">UCAYM</div>
+                  </div>
+                  <div class="tableWrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style="width:62%">Alan</th>
+                          <th style="width:38%">Tutar</th>
+                        </tr>
+                      </thead>
+                      <tbody id="outUcaym">
+                        <tr><td colspan="2" class="muted">—</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="outTable">
+                <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
+                  <div class="k">Toplam</div>
+                </div>
+                <div class="tableWrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width:62%">Alan</th>
+                        <th style="width:38%">Tutar</th>
+                      </tr>
+                    </thead>
+                    <tbody id="outSummary">
+                      <tr><td colspan="2" class="muted">—</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="chartCard">
+                <div class="chartTitle">Varlık Net Kâr Katkısı</div>
+                <div class="chartWrap chartWrap--bars chartWrap--cards">
+                  <div class="contribCards" id="chartCards"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <button class="navBtn navBtn--next" id="sliderNext" aria-label="Sonraki panel">›</button>
     </div>
   </div>
 
