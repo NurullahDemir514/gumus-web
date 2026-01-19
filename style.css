@@ -15,11 +15,6 @@
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
-    @property --fill{
-      syntax: "<percentage>";
-      inherits: false;
-      initial-value: 0%;
-    }
     *{box-sizing:border-box}
     body{
       margin:0; font-family:var(--sans); color:var(--text);
@@ -91,6 +86,8 @@
     }
     @media (prefers-reduced-motion: reduce){
       .bgFx__aurora, .bgFx__shine, .stickyBar::before, .stickyBar::after, .panelInner::before{ animation: none !important; }
+      .dot{ transition: none !important; }
+      .dot.isActive::after{ animation: none !important; }
     }
     h1{margin:0; font-size:20px; letter-spacing:.2px}
     .sub{color:var(--muted); font-size:12px; margin-top:6px}
@@ -360,16 +357,37 @@
       width:8px;
       height:8px;
       border-radius:999px;
-      border:1px solid var(--border);
-      background: conic-gradient(var(--accent) var(--fill, 0%), rgba(255,255,255,.25) 0);
+      border:1px solid rgba(255,255,255,.18);
+      background: transparent;
       cursor:pointer;
-      transition: transform .2s ease, --fill .5s ease;
-      --fill: 0%;
+      transition: transform 180ms ease, background 220ms ease, border-color 220ms ease;
+      position:relative;
+      z-index:1;
+    }
+    .dot::after{
+      content:"";
+      position:absolute;
+      inset:1px;
+      border-radius:999px;
+      background: linear-gradient(180deg, rgba(242,244,247,.95), rgba(210,216,223,.75));
+      opacity:0;
+      transform: scale(0.25);
     }
     .dot.isActive{
-      transform: scale(1.1);
-      box-shadow:0 0 0 3px rgba(106,169,255,.2);
-      --fill: 100%;
+      transform: scale(1.04);
+      box-shadow: 0 0 0 2px rgba(255,255,255,.10), 0 8px 18px rgba(0,0,0,.35);
+      border-color: rgba(255,255,255,.28);
+    }
+    .dot.isActive::after{
+      animation: dotFill 260ms ease-out forwards;
+    }
+    .dot:hover{
+      transform: scale(1.12);
+      border-color: rgba(255,255,255,.22);
+    }
+    @keyframes dotFill{
+      0%{ opacity:0; transform: scale(0.2); }
+      100%{ opacity:1; transform: scale(1); }
     }
     .dot:focus-visible{
       outline:none;

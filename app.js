@@ -1516,7 +1516,6 @@ const toNum = (s) => {
         const active = i === idx;
         dot.classList.toggle("isActive", active);
         dot.setAttribute("aria-selected", active ? "true" : "false");
-        dot.style.setProperty("--fill", active ? "100%" : "0%");
       });
     };
     const goTo = (idx) => {
