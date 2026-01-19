@@ -23,7 +23,10 @@
     <div class="stickyBar" id="stickyBar">
       <div class="barTop">
         <div class="barTitleMain">Portföy Kontrol</div>
-        <div class="pill" id="nowPill">—</div>
+        <div class="pillRow">
+          <div class="pill" id="perfPill">Perf: —</div>
+          <div class="pill" id="nowPill">—</div>
+        </div>
       </div>
       <div class="barGrid">
         <div class="barCol">
@@ -225,9 +228,10 @@
                 <div class="mini" id="historyMeta">Bugün: 0 kayıt • Son güncelleme: —</div>
               </div>
               <div class="chipGroup" id="historyFilters">
-                <button class="chipBtn isActive" data-filter="all">Tümü</button>
-                <button class="chipBtn" data-filter="silver" aria-disabled="true">Gümüş</button>
-                <button class="chipBtn" data-filter="stocks" aria-disabled="true">Hisse</button>
+                <button class="chipBtn isActive" data-filter="all">Tümü <span class="chipCount">0</span></button>
+                <button class="chipBtn" data-filter="today">Bugün <span class="chipCount">0</span></button>
+                <button class="chipBtn" data-filter="silver">Gümüş <span class="chipCount">0</span></button>
+                <button class="chipBtn" data-filter="stocks">Hisse <span class="chipCount">0</span></button>
               </div>
             </div>
             <div class="panelBody">
@@ -244,6 +248,8 @@
       </div>
     </div>
   </div>
+
+  <div class="toast" id="historyToast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script src="app.js"></script>
 </body>

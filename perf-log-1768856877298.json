@@ -1,0 +1,305 @@
+{
+  "startedAt": "2026-01-19T21:07:57.296Z",
+  "entries": [
+    {
+      "ts": "2026-01-19T21:06:19.488Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 72,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:20.488Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:21.524Z",
+      "fps": 15,
+      "jank": 7,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:22.542Z",
+      "fps": 24,
+      "jank": 7,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:23.569Z",
+      "fps": 24,
+      "jank": 4,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:24.575Z",
+      "fps": 26,
+      "jank": 3,
+      "longTaskMax": 88,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:25.591Z",
+      "fps": 25,
+      "jank": 2,
+      "longTaskMax": 106,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:26.613Z",
+      "fps": 24,
+      "jank": 4,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:27.609Z",
+      "fps": 29,
+      "jank": 1,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:28.691Z",
+      "fps": 25,
+      "jank": 3,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:29.702Z",
+      "fps": 16,
+      "jank": 7,
+      "longTaskMax": 230,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:30.705Z",
+      "fps": 29,
+      "jank": 1,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:06:31.738Z",
+      "fps": 29,
+      "jank": 1,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:39.356Z",
+      "fps": 0,
+      "jank": 1,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:40.358Z",
+      "fps": 28,
+      "jank": 1,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:41.410Z",
+      "fps": 22,
+      "jank": 5,
+      "longTaskMax": 188,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:43.187Z",
+      "fps": 29,
+      "jank": 1,
+      "longTaskMax": 89,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:44.188Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:45.221Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "scroll",
+      "isScrolling": true,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:46.221Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "scroll",
+      "isScrolling": true,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:47.221Z",
+      "fps": 27,
+      "jank": 3,
+      "longTaskMax": 0,
+      "event": "scroll",
+      "isScrolling": true,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:48.221Z",
+      "fps": 24,
+      "jank": 2,
+      "longTaskMax": 149,
+      "event": "scroll",
+      "isScrolling": true,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:49.254Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "scroll",
+      "isScrolling": true,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:50.254Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "scrollend",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:51.254Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "scroll",
+      "isScrolling": true,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:52.254Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "scroll",
+      "isScrolling": true,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:53.254Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "scroll",
+      "isScrolling": true,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:54.254Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "scrollend",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:55.254Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    },
+    {
+      "ts": "2026-01-19T21:07:56.288Z",
+      "fps": 30,
+      "jank": 0,
+      "longTaskMax": 0,
+      "event": "idle",
+      "isScrolling": false,
+      "isDragging": false,
+      "isAutoScrolling": false
+    }
+  ]
+}

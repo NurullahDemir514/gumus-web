@@ -67,6 +67,23 @@ const toNum = (s) => {
   const clsNum = (n) => n > 0 ? "pos" : (n < 0 ? "neg" : "muted");
   let historyFilter = "all";
   let lastTopProfit = null;
+  let selectedHistoryT = null;
+  const deleteStack = [];
+  let toastTimer = null;
+  let historyEventsBound = false;
+  let perfLast = performance.now();
+  let perfFrames = 0;
+  let perfDropped = 0;
+  let perfLastStamp = performance.now();
+  let perfMaxLong = 0;
+  let perfLastEvent = "idle";
+  const PERF_LOG_KEY = "onur_portfolio_perf_log_v1";
+  const PERF_LOG_MAX = 900;
+  const perfLog = [];
+
+  const setPerfEvent = (name) => {
+    perfLastEvent = name;
+  };
 
   const setFieldError = (id, msg) => {
     const input = $(id);
@@ -104,6 +121,10 @@ const toNum = (s) => {
   const dayKey = (ms) => {
     const d = new Date(ms);
     return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  };
+  const dayLabel = (ms) => {
+    const d = new Date(ms);
+    return `${d.getDate()} ${monthsTR[d.getMonth()]} ${d.getFullYear()}`;
   };
 
   const downsampleDaily = (points, { threshold, maxPoints }) => {
@@ -450,6 +471,79 @@ const toNum = (s) => {
     if (!Number.isFinite(t)) return null;
     const history = loadHistory();
     return history.find(h => h.t === t) || null;
+  }
+
+  function updateHistoryFilterCounts(history){
+    const filters = $("historyFilters");
+    if (!filters) return;
+    const todayKey = dayKey(Date.now());
+    const counts = {
+      all: history.length,
+      today: history.filter(h => dayKey(h.t) === todayKey).length,
+      silver: history.filter(h => Number.isFinite(h.calc?.inputs?.silverPx)).length,
+      stocks: history.filter(h => Number.isFinite(h.calc?.inputs?.asPx) || Number.isFinite(h.calc?.inputs?.ucPxOpt)).length
+    };
+    filters.querySelectorAll(".chipBtn").forEach((btn) => {
+      const key = btn.dataset.filter || "all";
+      const countEl = btn.querySelector(".chipCount");
+      if (countEl && Object.prototype.hasOwnProperty.call(counts, key)){
+        countEl.textContent = String(counts[key]);
+      }
+    });
+  }
+
+  function groupHistoryByDay(entries){
+    const groups = [];
+    let current = null;
+    entries.forEach((item) => {
+      const key = dayKey(item.t);
+      if (!current || current.dayKey !== key){
+        current = {
+          dayKey: key,
+          dateLabel: dayLabel(item.t),
+          items: [],
+          min: NaN,
+          max: NaN,
+          count: 0
+        };
+        groups.push(current);
+      }
+      current.items.push(item);
+      current.count += 1;
+      if (Number.isFinite(item.totalProfit)){
+        current.min = Number.isFinite(current.min) ? Math.min(current.min, item.totalProfit) : item.totalProfit;
+        current.max = Number.isFinite(current.max) ? Math.max(current.max, item.totalProfit) : item.totalProfit;
+      }
+    });
+    return groups;
+  }
+
+  function showUndoToast(){
+    const toast = $("historyToast");
+    if (!toast || !deleteStack.length) return;
+    toast.innerHTML = `
+      <div class="toastText">Kayıt silindi</div>
+      <button class="toastAction" type="button">Geri al</button>
+    `;
+    toast.classList.add("isVisible");
+    const action = toast.querySelector(".toastAction");
+    if (action){
+      action.addEventListener("click", () => {
+        const item = deleteStack.pop();
+        if (!item) return;
+        const history = loadHistory();
+        history.push(item.entry);
+        history.sort((a,b)=>b.t-a.t);
+        saveHistory(history);
+        renderCharts(lastCalc);
+        renderHistoryList();
+        toast.classList.remove("isVisible");
+      }, { once: true });
+    }
+    if (toastTimer) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toast.classList.remove("isVisible");
+    }, 5000);
   }
 
   function applySummarySelection(calc){
@@ -1167,19 +1261,32 @@ const toNum = (s) => {
     const history = loadHistory().slice().sort((a,b)=>b.t-a.t);
     const todayKey = dayKey(Date.now());
     const applyFilter = (h) => {
+      if (historyFilter === "today") return dayKey(h.t) === todayKey;
       if (historyFilter === "silver") return Number.isFinite(h.calc?.inputs?.silverPx);
       if (historyFilter === "stocks") {
         return Number.isFinite(h.calc?.inputs?.asPx) || Number.isFinite(h.calc?.inputs?.ucPxOpt);
       }
       return true;
     };
+    updateHistoryFilterCounts(history);
     const filtered = history.filter(applyFilter);
-    const today = filtered.filter(h => dayKey(h.t) === todayKey);
+    const today = history.filter(h => dayKey(h.t) === todayKey);
+    if (selectedHistoryT && !filtered.some(h => h.t === selectedHistoryT)){
+      selectedHistoryT = null;
+    }
 
     if (meta){
       const lastT = filtered[0]?.t;
       const lastTime = Number.isFinite(lastT) ? `${pad2(new Date(lastT).getHours())}:${pad2(new Date(lastT).getMinutes())}` : "—";
-      meta.textContent = `Bugün: ${today.length} kayıt • Son güncelleme: ${lastTime}`;
+      if (selectedHistoryT){
+        const selected = filtered.find(h => h.t === selectedHistoryT);
+        const netText = Number.isFinite(selected?.totalProfit) ? fmtSignedTL(selected.totalProfit) : "—";
+        meta.textContent = selected
+          ? `Seçili: ${selected.stamp || formatStamp(selected.t)} • Net ${netText}`
+          : `Bugün: ${today.length} kayıt • Son güncelleme: ${lastTime}`;
+      } else {
+        meta.textContent = `Bugün: ${today.length} kayıt • Son güncelleme: ${lastTime}`;
+      }
     }
 
     if (!filtered.length){
@@ -1193,53 +1300,97 @@ const toNum = (s) => {
       return;
     }
 
-    const items = filtered.map((h) => {
-      const net = Number.isFinite(h.totalProfit) ? h.totalProfit : NaN;
-      const netStr = Number.isFinite(net) ? fmtSignedTL(net) : "Net —";
-      const d = new Date(h.t);
-      const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-      const silver = Number.isFinite(h.calc?.inputs?.silverPx) ? `Gümüş ${TL4.format(h.calc.inputs.silverPx)} ₺/g` : null;
-      const asel = Number.isFinite(h.calc?.inputs?.asPx) ? `ASELS ${TL.format(h.calc.inputs.asPx)} ₺` : null;
-      const ucaym = Number.isFinite(h.calc?.inputs?.ucPxOpt) ? `UCAYM ${TL.format(h.calc.inputs.ucPxOpt)} ₺` : null;
-      const sub = [silver, asel, ucaym].filter(Boolean).join(" • ");
-      const dotColor = Number.isFinite(net) ? (net >= 0 ? "var(--good)" : "var(--bad)") : "var(--muted)";
-      const cardClass = Number.isFinite(net) ? (net >= 0 ? "pos" : "neg") : "muted";
-      return `
-        <div class="historyItem" tabindex="0">
-          <div class="historyDot" style="background:${dotColor}"></div>
-          <div class="historyCard">
-            <div class="historyTop">
-              <div class="historyNet ${cardClass}">Net ${netStr}</div>
-              <div class="historyTime">${time}</div>
+    const diffMap = new Map();
+    filtered.forEach((item, idx) => {
+      const prev = filtered[idx + 1];
+      const net = Number.isFinite(item.totalProfit) ? item.totalProfit : NaN;
+      const prevNet = Number.isFinite(prev?.totalProfit) ? prev.totalProfit : NaN;
+      const diff = Number.isFinite(net) && Number.isFinite(prevNet) ? (net - prevNet) : NaN;
+      diffMap.set(item.t, diff);
+    });
+    const groups = groupHistoryByDay(filtered);
+    list.innerHTML = groups.map((group) => {
+      const minMax = Number.isFinite(group.min) && Number.isFinite(group.max)
+        ? `${fmtSignedTL(group.min)} - ${fmtSignedTL(group.max)}`
+        : "—";
+      const items = group.items.map((h) => {
+        const net = Number.isFinite(h.totalProfit) ? h.totalProfit : NaN;
+        const netStr = Number.isFinite(net) ? fmtSignedTL(net) : "Net —";
+        const d = new Date(h.t);
+        const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        const silver = Number.isFinite(h.calc?.inputs?.silverPx) ? `Gümüş ${TL4.format(h.calc.inputs.silverPx)} ₺/g` : null;
+        const asel = Number.isFinite(h.calc?.inputs?.asPx) ? `ASELS ${TL.format(h.calc.inputs.asPx)} ₺` : null;
+        const ucaym = Number.isFinite(h.calc?.inputs?.ucPxOpt) ? `UCAYM ${TL.format(h.calc.inputs.ucPxOpt)} ₺` : null;
+        const sub = [silver, asel, ucaym].filter(Boolean).join(" • ");
+        const diff = diffMap.get(h.t);
+        const deltaText = Number.isFinite(diff) ? `Δ ${fmtSignedTL(diff)}` : "Δ —";
+        const deltaClass = Number.isFinite(diff) ? clsNum(diff) : "muted";
+        const dotColor = Number.isFinite(net) ? (net >= 0 ? "var(--good)" : "var(--bad)") : "var(--muted)";
+        const cardClass = Number.isFinite(net) ? (net >= 0 ? "pos" : "neg") : "muted";
+        const isSelected = selectedHistoryT === h.t ? "isSelected" : "";
+        return `
+          <div class="historyItem ${isSelected}" data-id="${h.t}" data-t="${h.t}" tabindex="0">
+            <div class="historyDot" style="background:${dotColor}"></div>
+            <div class="historyCard">
+              <div class="historyTop">
+                <div class="historyNet ${cardClass}">Net ${netStr}</div>
+              <div class="historyTopRight">
+                <div class="historyTime">${time}</div>
+                <button class="historyDeleteIcon" type="button" aria-label="Kaydı sil">✕</button>
+              </div>
             </div>
             <div class="historySub">${sub || "—"}</div>
-            <div class="historyBadge" data-stamp="${h.stamp || formatStamp(h.t)}">Detay</div>
+            <div class="historyDelta ${deltaClass}">${deltaText}</div>
+            <div class="historyConfirmRow" style="display:none">
+              <span>Silinsin mi?</span>
+              <button class="historyConfirmYes" type="button">Evet</button>
+              <button class="historyConfirmNo" type="button">Vazgeç</button>
+            </div>
           </div>
         </div>
       `;
     }).join("");
-    list.innerHTML = items;
+      return `
+        <div class="historyDayHeader">
+          <div>${group.dateLabel}</div>
+          <div class="mini">${group.count} kayıt • ${minMax}</div>
+        </div>
+        ${items}
+      `;
+    }).join("");
 
-    list.querySelectorAll(".historyBadge").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        console.log("Detay", btn.dataset.stamp || "");
-      });
-    });
 
     if (summary){
-      const todayNets = today.map(h => h.totalProfit).filter(Number.isFinite);
-      if (!todayNets.length){
+      let summaryItems = filtered;
+      if (historyFilter === "today"){
+        summaryItems = history.filter(h => dayKey(h.t) === todayKey);
+      }
+      if (selectedHistoryT){
+        const selected = history.find(h => h.t === selectedHistoryT);
+        if (selected){
+          const selectedDay = dayKey(selected.t);
+          summaryItems = filtered.filter(h => dayKey(h.t) === selectedDay);
+        }
+      }
+      const summaryNets = summaryItems.map(h => h.totalProfit).filter(Number.isFinite);
+      if (!summaryNets.length){
         summary.style.display = "none";
       } else {
-        const min = Math.min(...todayNets);
-        const max = Math.max(...todayNets);
+        const min = Math.min(...summaryNets);
+        const max = Math.max(...summaryNets);
         const diff = max - min;
+        const first = summaryItems[summaryItems.length - 1];
+        const last = summaryItems[0];
+        const trend = (Number.isFinite(first?.totalProfit) && Number.isFinite(last?.totalProfit))
+          ? last.totalProfit - first.totalProfit
+          : NaN;
         summary.style.display = "grid";
         summary.innerHTML = `
           <div><div class="lbl">Min Net</div><div class="val">${fmtSignedTL(min)}</div></div>
           <div><div class="lbl">Max Net</div><div class="val">${fmtSignedTL(max)}</div></div>
           <div><div class="lbl">Gün içi fark</div><div class="val">${fmtSignedTL(diff)}</div></div>
+          <div><div class="lbl">Kayıt sayısı</div><div class="val">${summaryItems.length}</div></div>
+          ${Number.isFinite(trend) ? `<div><div class="lbl">Son - İlk</div><div class="val">${fmtSignedTL(trend)}</div></div>` : ""}
         `;
       }
     }
@@ -1475,16 +1626,115 @@ const toNum = (s) => {
   }
   const historyFilters = $("historyFilters");
   if (historyFilters) {
-    historyFilters.querySelectorAll(".chipBtn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (btn.getAttribute("aria-disabled") === "true") return;
-        historyFilters.querySelectorAll(".chipBtn").forEach((b) => b.classList.remove("isActive"));
-        btn.classList.add("isActive");
-        historyFilter = btn.dataset.filter || "all";
-        renderHistoryList();
-      });
+    historyFilters.addEventListener("click", (e) => {
+      const btn = e.target.closest(".chipBtn");
+      if (!btn || !historyFilters.contains(btn)) return;
+      historyFilters.querySelectorAll(".chipBtn").forEach((b) => b.classList.remove("isActive"));
+      btn.classList.add("isActive");
+      historyFilter = btn.dataset.filter || "all";
+      renderHistoryList();
     });
   }
+
+  function bindHistoryListEventsOnce() {
+    if (historyEventsBound) return;
+    historyEventsBound = true;
+
+    const list = $("historyList");
+    if (!list) return;
+
+    list.addEventListener("pointerdown", (e) => {
+      const delBtn = e.target.closest(".historyDeleteIcon");
+      if (delBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const item = delBtn.closest(".historyItem");
+        if (!item) return;
+        const row = item.querySelector(".historyConfirmRow");
+        if (!row) return;
+        const willOpen = row.style.display !== "flex";
+        list.querySelectorAll(".historyConfirmRow").forEach((r) => { r.style.display = "none"; });
+        if (willOpen) row.style.display = "flex";
+        return;
+      }
+
+      if (e.target.closest(".historyConfirmYes") || e.target.closest(".historyConfirmNo")) {
+        e.stopPropagation();
+      }
+    }, true);
+
+    list.addEventListener("click", (e) => {
+      const noBtn = e.target.closest(".historyConfirmNo");
+      if (noBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const row = noBtn.closest(".historyConfirmRow");
+        if (row) row.style.display = "none";
+        return;
+      }
+
+      const yesBtn = e.target.closest(".historyConfirmYes");
+      if (yesBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const row = yesBtn.closest(".historyConfirmRow");
+        if (row) row.style.display = "none";
+
+        const itemEl = yesBtn.closest(".historyItem");
+        if (!itemEl) return;
+
+        const t = Number(itemEl.dataset.t);
+        if (!Number.isFinite(t)) return;
+
+        const historyList = loadHistory();
+        const idx = historyList.findIndex(h => h.t === t);
+        if (idx === -1) return;
+
+        const removed = historyList.splice(idx, 1)[0];
+        saveHistory(historyList);
+
+        deleteStack.push({ entry: removed });
+        if (deleteStack.length > 3) deleteStack.shift();
+
+        if (lastCalc) renderCharts(lastCalc);
+        renderHistoryList();
+        showUndoToast();
+        return;
+      }
+
+      if (e.target.closest(".historyDeleteIcon") || e.target.closest(".historyConfirmRow")) {
+        e.stopPropagation();
+        return;
+      }
+
+      const item = e.target.closest(".historyItem");
+      if (item) {
+        if (e.target.closest(".historyConfirmRow")) return;
+        const openRow = item.querySelector(".historyConfirmRow");
+        if (openRow && openRow.style.display === "flex") return;
+
+        const t = Number(item.dataset.t);
+        selectedHistoryT = Number.isFinite(t) ? t : null;
+        renderHistoryList();
+      }
+    });
+
+    list.addEventListener("keydown", (e) => {
+      const item = e.target.closest(".historyItem");
+      if (!item) return;
+      if (e.key !== "Enter" && e.key !== " ") return;
+
+      e.preventDefault();
+      const t = Number(item.dataset.t);
+      selectedHistoryT = Number.isFinite(t) ? t : null;
+      renderHistoryList();
+    });
+
+  }
+
+  bindHistoryListEventsOnce();
+
 
 
   const stickyBar = $("stickyBar");
@@ -1505,10 +1755,28 @@ const toNum = (s) => {
 
   if (slider) {
     const panels = Array.from(slider.querySelectorAll(".panel"));
-    const currentIndex = () => Math.round(slider.scrollLeft / slider.clientWidth);
+    let sliderWidth = slider.clientWidth;
+    const currentIndex = () => Math.round(slider.scrollLeft / sliderWidth);
     const dotsWrap = $("sliderDots");
     const dots = dotsWrap ? Array.from(dotsWrap.querySelectorAll(".dot")) : [];
     let lastActiveIdx = -1;
+    let scrollSettleId = 0;
+    let isAutoScrolling = false;
+    let scrollPauseId = 0;
+    const settleToIndex = () => {
+      const idx = currentIndex();
+      const target = idx * slider.clientWidth;
+      if (Math.abs(slider.scrollLeft - target) > 1) {
+        slider.scrollTo({ left: target, behavior: "auto" });
+      }
+      setActiveDot(idx);
+      if (scrollPauseId) window.clearTimeout(scrollPauseId);
+      document.body.classList.remove("isScrolling");
+      if (isAutoScrolling) {
+        isAutoScrolling = false;
+        slider.classList.remove("isAutoScrolling");
+      }
+    };
     const setActiveDot = (idx) => {
       if (idx === lastActiveIdx) return;
       lastActiveIdx = idx;
@@ -1520,7 +1788,10 @@ const toNum = (s) => {
     };
     const goTo = (idx) => {
       const clamped = Math.max(0, Math.min(idx, panels.length - 1));
-      slider.scrollTo({ left: clamped * slider.clientWidth, behavior: "smooth" });
+      isAutoScrolling = true;
+      slider.classList.add("isAutoScrolling");
+      setPerfEvent("dot-nav");
+      slider.scrollTo({ left: clamped * sliderWidth, behavior: "smooth" });
       setActiveDot(clamped);
     };
     const prev = $("sliderPrev");
@@ -1539,10 +1810,30 @@ const toNum = (s) => {
     const onScroll = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        setActiveDot(currentIndex());
+        const idx = currentIndex();
+        if (idx !== lastActiveIdx) setActiveDot(idx);
       });
+      setPerfEvent("scroll");
+      document.body.classList.add("isScrolling");
+      if (scrollPauseId) window.clearTimeout(scrollPauseId);
+      scrollPauseId = window.setTimeout(() => {
+        document.body.classList.remove("isScrolling");
+      }, 140);
+      if ("onscrollend" in window) return;
+      if (scrollSettleId) window.clearTimeout(scrollSettleId);
+      scrollSettleId = window.setTimeout(settleToIndex, 120);
     };
     slider.addEventListener("scroll", onScroll, { passive: true });
+    if ("onscrollend" in window) {
+      slider.addEventListener("scrollend", () => {
+        setPerfEvent("scrollend");
+        settleToIndex();
+      }, { passive: true });
+    }
+    window.addEventListener("resize", () => {
+      sliderWidth = slider.clientWidth || sliderWidth;
+      settleToIndex();
+    });
 
     slider.addEventListener("keydown", (e) => {
       if (e.key === "ArrowLeft") {
@@ -1557,21 +1848,37 @@ const toNum = (s) => {
     let isDown = false;
     let startX = 0;
     let startScroll = 0;
+    let dragRaf = 0;
+    let dragDx = 0;
     slider.addEventListener("pointerdown", (e) => {
       if (e.target.closest(".modeBtn")) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
       isDown = true;
+      slider.classList.add("isDragging");
+      setPerfEvent("drag-start");
       startX = e.clientX;
       startScroll = slider.scrollLeft;
       slider.setPointerCapture(e.pointerId);
     });
     slider.addEventListener("pointermove", (e) => {
       if (!isDown) return;
-      const dx = e.clientX - startX;
-      slider.scrollLeft = startScroll - dx;
+      dragDx = e.clientX - startX;
+      if (dragRaf) return;
+      dragRaf = requestAnimationFrame(() => {
+        slider.scrollLeft = startScroll - dragDx;
+        dragRaf = 0;
+      });
     });
-    slider.addEventListener("pointerup", () => { isDown = false; });
-    slider.addEventListener("pointercancel", () => { isDown = false; });
+    slider.addEventListener("pointerup", () => {
+      isDown = false;
+      slider.classList.remove("isDragging");
+      setPerfEvent("drag-end");
+    });
+    slider.addEventListener("pointercancel", () => {
+      isDown = false;
+      slider.classList.remove("isDragging");
+      setPerfEvent("drag-cancel");
+    });
   }
 
 
@@ -1642,6 +1949,73 @@ const toNum = (s) => {
   loadInputs();
 
   setText("nowPill", nowTR());
+  const perfPill = $("perfPill");
+  if (perfPill) {
+    try {
+      const savedPerf = JSON.parse(localStorage.getItem(PERF_LOG_KEY) || "[]");
+      if (Array.isArray(savedPerf)) perfLog.push(...savedPerf.slice(-PERF_LOG_MAX));
+    } catch {}
+    if ("PerformanceObserver" in window) {
+      try {
+        const obs = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => {
+            if (entry.duration > perfMaxLong) perfMaxLong = entry.duration;
+          });
+        });
+        obs.observe({ type: "longtask", buffered: true });
+      } catch {}
+    }
+    const exportPerfLog = () => {
+      const payload = {
+        startedAt: new Date().toISOString(),
+        entries: perfLog.slice()
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `perf-log-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    };
+    perfPill.title = "Tıklayın: Perf log indir";
+    perfPill.addEventListener("click", exportPerfLog);
+    const tick = (t) => {
+      perfFrames += 1;
+      const dt = t - perfLast;
+      if (dt > 50) perfDropped += 1;
+      perfLast = t;
+      if (t - perfLastStamp >= 1000) {
+        const fps = Math.round((perfFrames * 1000) / (t - perfLastStamp));
+        const maxLong = perfMaxLong ? `${Math.round(perfMaxLong)}ms` : "—";
+        perfPill.textContent = `Perf: ${fps}fps • jank ${perfDropped} • long ${maxLong}`;
+        const isBad = fps < 24 || perfDropped > 5 || perfMaxLong > 120;
+        perfPill.classList.toggle("isPerfBad", isBad);
+        perfPill.classList.toggle("isPerfGood", !isBad);
+        perfLog.push({
+          ts: new Date().toISOString(),
+          fps,
+          jank: perfDropped,
+          longTaskMax: Math.round(perfMaxLong || 0),
+          event: perfLastEvent,
+          isScrolling: document.body.classList.contains("isScrolling"),
+          isDragging: slider ? slider.classList.contains("isDragging") : false,
+          isAutoScrolling: slider ? slider.classList.contains("isAutoScrolling") : false
+        });
+        if (perfLog.length > PERF_LOG_MAX) perfLog.shift();
+        try { localStorage.setItem(PERF_LOG_KEY, JSON.stringify(perfLog)); } catch {}
+        perfFrames = 0;
+        perfDropped = 0;
+        perfLastStamp = t;
+        perfMaxLong = 0;
+        perfLastEvent = "idle";
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
   setText("stampPill", state.cur.stamp ? state.cur.stamp : "—");
   setText("prevTag", state.prev.stamp ? state.prev.stamp : "—");
   renderHistorySelectOptions();
