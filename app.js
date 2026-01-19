@@ -235,24 +235,43 @@ const toNum = (s) => {
   }
 
   // ====== RENDER ======
+  const setText = (id, txt) => {
+    const el = $(id);
+    if (el) el.textContent = txt;
+  };
+  const setHtml = (id, html) => {
+    const el = $(id);
+    if (el) el.innerHTML = html;
+  };
+
   function setTop(calc){
-    $("nowPill").textContent = nowTR();
-    $("stampPill").textContent = state.cur.stamp ? state.cur.stamp : "—";
-    $("prevTag").textContent = state.prev.stamp ? state.prev.stamp : "—";
-    $("quickBadge").textContent = (Number.isFinite(calc.inputs.silverPx) && Number.isFinite(calc.inputs.asPx))
-      ? `Gümüş ${TL4.format(calc.inputs.silverPx)} ₺/g • ASELSAN ${TL.format(calc.inputs.asPx)} ₺`
-      : "—";
+    setText("nowPill", nowTR());
+    setText("stampPill", state.cur.stamp ? state.cur.stamp : "—");
+    setText("prevTag", state.prev.stamp ? state.prev.stamp : "—");
+    setText(
+      "quickBadge",
+      (Number.isFinite(calc.inputs.silverPx) && Number.isFinite(calc.inputs.asPx))
+        ? `Gümüş ${TL4.format(calc.inputs.silverPx)} ₺/g • ASELSAN ${TL.format(calc.inputs.asPx)} ₺`
+        : "—"
+    );
 
     const tp = calc.totals.totalProfit;
-    $("totalProfit").textContent = fmtSignedTL(tp);
-    $("totalProfit").className = "val " + clsNum(tp);
+    const totalEl = $("totalProfit");
+    if (totalEl) {
+      totalEl.textContent = fmtSignedTL(tp);
+      totalEl.classList.remove("pos","neg","muted");
+      totalEl.classList.add(clsNum(tp));
+    }
 
     const prevTot = state.prev.totalProfit;
     if (Number.isFinite(prevTot)) {
       const diff = tp - prevTot;
-      $("totDiffLine").innerHTML = `önceki: <span class="mono">${fmtSignedTL(prevTot)}</span> → <span class="mono ${clsNum(diff)}">${fmtSignedTL(diff)}</span>`;
+      setHtml(
+        "totDiffLine",
+        `önceki: <span class="mono">${fmtSignedTL(prevTot)}</span> → <span class="mono ${clsNum(diff)}">${fmtSignedTL(diff)}</span>`
+      );
     } else {
-      $("totDiffLine").textContent = "önceki: —";
+      setText("totDiffLine", "önceki: —");
     }
   }
 
@@ -337,7 +356,9 @@ const toNum = (s) => {
   replaceBody("outSilver", tbSilver);
   replaceBody("outAselsan", tbAselsan);
   replaceBody("outUcaym", tbUcaym);
-  replaceBody("outSummary", tbSummary);
+  if (document.getElementById("outSummary")) {
+    replaceBody("outSummary", tbSummary);
+  }
   }
 
   function loadHistory(){
@@ -402,9 +423,13 @@ const toNum = (s) => {
     const entry = getSelectedHistoryEntry();
     if (entry && entry.calc) {
       renderOutputTable(entry.calc, entry.stamp || formatStamp(entry.t));
+      renderContribution(entry.calc, entry);
+      renderSummaryFooter(entry.calc, entry);
       return;
     }
     renderOutputTable(calc);
+    renderContribution(calc);
+    renderSummaryFooter(calc);
   }
 
   /* ---------- Premium Canvas Charts (v2) ---------- */
@@ -921,25 +946,87 @@ const toNum = (s) => {
   /* ---------- renderCharts (premium) ---------- */
   let _chartProfitV2, _chartValueV2;
 
-  function renderCardsContribution(container, items){
+  function renderCardsContribution(container, items, prevItems){
     if (!container) return;
     if (!items.length){
       container.innerHTML = "<div class=\"muted\">Veri yok</div>";
       return;
     }
     const sumAbs = items.reduce((acc, it) => acc + Math.abs(it.value), 0) || 1;
+    const prevMap = (prevItems || []).reduce((acc, it) => {
+      acc[it.label] = it.value;
+      return acc;
+    }, {});
     container.innerHTML = items.map((it) => {
       const pct = (Math.abs(it.value) / sumAbs) * 100;
       const color = it.value >= 0 ? "var(--good)" : "var(--bad)";
+      const prevVal = Number.isFinite(prevMap[it.label]) ? prevMap[it.label] : NaN;
+      const diff = Number.isFinite(prevVal) ? (it.value - prevVal) : NaN;
+      const diffText = Number.isFinite(diff) ? fmtSignedTL(diff) : "—";
+      const isPassive = Math.abs(it.value) < 1e-9;
       return `
-        <div class="contribCard">
+        <div class="contribCard${isPassive ? " isPassive" : ""}">
+          ${isPassive ? "<div class=\"contribBadge\">Pasif varlık</div>" : ""}
           <div class="lbl">${it.label}</div>
           <div class="val" style="color:${color}">${fmtSignedTL(it.value)}</div>
           <div class="mini">%${TL.format(pct)} pay</div>
-          <div class="contribBar"><span style="width:${pct}%; background:${color};"></span></div>
+          ${isPassive
+            ? "<div class=\"contribBar--dashed\"></div>"
+            : `<div class="contribBar"><span style="width:${pct}%; background:${color};"></span></div>`
+          }
+          <div class="contribMeta">
+            <div>Toplam kârın %${TL.format(pct)}’u</div>
+            <div>Son güncellemeden beri ${diffText}</div>
+          </div>
         </div>
       `;
     }).join("");
+  }
+
+  function getPrevHistoryEntry(entry){
+    const history = loadHistory().slice().sort((a,b)=>b.t-a.t);
+    if (!history.length) return null;
+    if (!entry || !Number.isFinite(entry.t)) return history[0] || null;
+    const idx = history.findIndex(h => h.t === entry.t);
+    if (idx === -1) return history[0] || null;
+    return history[idx + 1] || null;
+  }
+
+  function renderContribution(calc, entry){
+    if (!calc) return;
+    const uc = Number.isFinite(calc.ucaym.profit) ? calc.ucaym.profit : 0;
+    const contribItems = [
+      { label: "Gümüş", value: calc.silver.net },
+      { label: "ASEL",  value: calc.aselsan.profit },
+      { label: "UCAYM", value: uc }
+    ];
+    const prev = getPrevHistoryEntry(entry);
+    const prevItems = prev?.calc ? [
+      { label: "Gümüş", value: prev.calc.silver.net },
+      { label: "ASEL",  value: prev.calc.aselsan.profit },
+      { label: "UCAYM", value: Number.isFinite(prev.calc.ucaym.profit) ? prev.calc.ucaym.profit : 0 }
+    ] : [];
+    renderCardsContribution($("chartCards"), contribItems, prevItems);
+  }
+
+  function renderSummaryFooter(calc, entry){
+    const footer = $("summaryFooterText");
+    if (!footer || !calc) return;
+    const silver = Number.isFinite(calc.silver.net) ? calc.silver.net : 0;
+    const asel = Number.isFinite(calc.aselsan.profit) ? calc.aselsan.profit : 0;
+    const uc = Number.isFinite(calc.ucaym.profit) ? calc.ucaym.profit : 0;
+    const sumAbs = Math.abs(silver) + Math.abs(asel) + Math.abs(uc);
+    if (sumAbs === 0){
+      footer.innerHTML = "<div>Portföy kârı şu an nötr, dağılım yorumu için veri yok.</div>";
+      return;
+    }
+    const silverAsShare = ((Math.abs(silver) + Math.abs(asel)) / sumAbs) * 100;
+    const maxShare = Math.max(Math.abs(silver), Math.abs(asel), Math.abs(uc)) / sumAbs * 100;
+    const line1 = `Portföy kârının %${TL.format(silverAsShare)}’u gümüş ve ASELSAN’dan geliyor.`;
+    const line2 = (maxShare >= 70)
+      ? "Varlık dağılımı tek varlıkta yoğunlaşıyor, çeşitlilik dengesi zayıf."
+      : "Varlık dağılımı dengeli, tek varlığa aşırı yüklenme yok.";
+    footer.innerHTML = `<div>${line1}</div><div>${line2}</div>`;
   }
 
   function renderHistoryList(){
@@ -1073,13 +1160,7 @@ const toNum = (s) => {
     _chartProfitV2.setSeries(profitSeries);
     _chartValueV2.setSeries(valueSeries);
 
-    const uc = Number.isFinite(calc.ucaym.profit) ? calc.ucaym.profit : 0;
-    const contribItems = [
-      { label: "Gümüş", value: calc.silver.net },
-      { label: "ASEL",  value: calc.aselsan.profit },
-      { label: "UCAYM", value: uc }
-    ];
-    renderCardsContribution($("chartCards"), contribItems);
+    renderContribution(calc);
   }
 
   function syncAll(calc){
@@ -1223,12 +1304,14 @@ const toNum = (s) => {
     clearTradeError();
     $("tradeQty").value = "";
     $("tradePx").value = "";
-    $("totalProfit").textContent = "—";
-    $("totDiffLine").textContent = "önceki: —";
-    $("prevTag").textContent = "—";
-    $("stampPill").textContent = "—";
-    $("quickBadge").textContent = "—";
-    $("nowPill").textContent = nowTR();
+    setText("totalProfit", "—");
+    setText("totDiffLine", "önceki: —");
+    setText("prevTag", "—");
+    setText("stampPill", "—");
+    setText("quickBadge", "—");
+    setText("nowPill", nowTR());
+    const totalEl = $("totalProfit");
+    if (totalEl) totalEl.classList.remove("pos","neg","muted");
     ["outSilver","outAselsan","outUcaym","outSummary"].forEach((id) => {
       const tb = $(id);
       if (tb) tb.innerHTML = `<tr><td colspan="2" class="muted">—</td></tr>`;
@@ -1420,9 +1503,9 @@ const toNum = (s) => {
   // ilk açılışta yükle
   loadInputs();
 
-  $("nowPill").textContent = nowTR();
-  $("stampPill").textContent = state.cur.stamp ? state.cur.stamp : "—";
-    $("prevTag").textContent = state.prev.stamp ? state.prev.stamp : "—";
+  setText("nowPill", nowTR());
+  setText("stampPill", state.cur.stamp ? state.cur.stamp : "—");
+  setText("prevTag", state.prev.stamp ? state.prev.stamp : "—");
   renderHistorySelectOptions();
 
   // initial render if have prices
@@ -1433,8 +1516,8 @@ const toNum = (s) => {
     syncAll(calc);
   } else {
     // placeholders
-    $("quickBadge").textContent = "—";
-    $("totDiffLine").textContent = "önceki: —";
+    setText("quickBadge", "—");
+    setText("totDiffLine", "önceki: —");
     const entry = getSelectedHistoryEntry();
     if (entry && entry.calc) {
       renderOutputTable(entry.calc, entry.stamp || formatStamp(entry.t));

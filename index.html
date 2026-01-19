@@ -43,6 +43,20 @@
               <button class="btn2" id="btnReset">Sıfırla</button>
             </div>
           </div>
+          <div class="kpiStrip" id="kpiStrip">
+            <div class="kpiLeft">
+              <div class="kpiLbl">Toplam portföy anlık net kâr</div>
+              <div class="mini" id="totDiffLine">önceki: —</div>
+            </div>
+
+            <div class="kpiRight">
+              <div class="kpiVal mono" id="totalProfit">—</div>
+              <div class="kpiMeta">
+                <div class="badge" id="stampPill">—</div>
+                <div class="badge" id="quickBadge">—</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="barCol">
@@ -86,7 +100,6 @@
     </div>
 
     <div class="sliderWrap">
-      <button class="navBtn navBtn--prev" id="sliderPrev" aria-label="Önceki panel">‹</button>
       <div class="slider" id="slider" tabindex="0" aria-label="Panel kaydirici">
         <section class="panel panel--summary">
           <div class="panelInner">
@@ -101,33 +114,14 @@
                 </select>
               </div>
             </div>
-            <div class="panelBody" style="display:flex; flex-direction:column; gap:12px; min-height:0">
-              <div class="bigline">
-                <div>
-                  <div class="lbl">Toplam portföy anlık net kâr</div>
-                  <div class="mini" id="totDiffLine">önceki: —</div>
-                </div>
-                <div class="val" id="totalProfit">—</div>
-              </div>
-              <div class="row">
-                <div class="badge" id="stampPill">—</div>
-                <div class="badge" id="quickBadge">—</div>
-                <div class="tag" id="prevTag" style="display:none">—</div>
-              </div>
-
+            <div class="panelBody" style="display:flex; flex-direction:column; gap:12px;">
               <div class="outGrid">
                 <div class="outTable">
-                  <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
+                  <div class="hd">
                     <div class="k">Gümüş</div>
                   </div>
                   <div class="tableWrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th style="width:62%">Alan</th>
-                          <th style="width:38%">Tutar</th>
-                        </tr>
-                      </thead>
+                    <table class="kvTable">
                       <tbody id="outSilver">
                         <tr><td colspan="2" class="muted">—</td></tr>
                       </tbody>
@@ -136,17 +130,11 @@
                 </div>
 
                 <div class="outTable">
-                  <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
+                  <div class="hd">
                     <div class="k">ASELSAN</div>
                   </div>
                   <div class="tableWrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th style="width:62%">Alan</th>
-                          <th style="width:38%">Tutar</th>
-                        </tr>
-                      </thead>
+                    <table class="kvTable">
                       <tbody id="outAselsan">
                         <tr><td colspan="2" class="muted">—</td></tr>
                       </tbody>
@@ -155,17 +143,11 @@
                 </div>
 
                 <div class="outTable">
-                  <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
+                  <div class="hd">
                     <div class="k">UCAYM</div>
                   </div>
                   <div class="tableWrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th style="width:62%">Alan</th>
-                          <th style="width:38%">Tutar</th>
-                        </tr>
-                      </thead>
+                    <table class="kvTable">
                       <tbody id="outUcaym">
                         <tr><td colspan="2" class="muted">—</td></tr>
                       </tbody>
@@ -174,30 +156,15 @@
                 </div>
               </div>
 
-              <div class="outTable">
-                <div class="hd" style="border-bottom-color:rgba(255,255,255,.06)">
-                  <div class="k">Toplam</div>
-                </div>
-                <div class="tableWrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th style="width:62%">Alan</th>
-                        <th style="width:38%">Tutar</th>
-                      </tr>
-                    </thead>
-                    <tbody id="outSummary">
-                      <tr><td colspan="2" class="muted">—</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
               <div class="chartCard">
                 <div class="chartTitle">Varlık Net Kâr Katkısı</div>
                 <div class="chartWrap chartWrap--bars chartWrap--cards">
                   <div class="contribCards" id="chartCards"></div>
                 </div>
+              </div>
+              <div class="summaryFooter" id="summaryFooter">
+                <div class="summaryFooterTitle">Genel yorum</div>
+                <div class="summaryFooterText" id="summaryFooterText">—</div>
               </div>
             </div>
           </div>
@@ -260,7 +227,6 @@
           </div>
         </section>
       </div>
-      <button class="navBtn navBtn--next" id="sliderNext" aria-label="Sonraki panel">›</button>
       <div class="sliderDots" id="sliderDots" role="tablist" aria-label="Paneller">
         <button class="dot isActive" role="tab" aria-selected="true" data-index="0" aria-label="Panel 1"></button>
         <button class="dot" role="tab" aria-selected="false" data-index="1" aria-label="Panel 2"></button>

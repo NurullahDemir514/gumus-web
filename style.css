@@ -9,7 +9,7 @@
       --accent:#6aa9ff;
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --border: rgba(255,255,255,.10);
-      --card-bg: rgba(0,0,0,.10);
+      --card-bg: rgba(0,0,0,.12);
       --r:18px;
       --sticky-h: 140px;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -80,7 +80,7 @@
       100%{ transform: translate3d(18%, 10%, 0) rotate(8deg); }
     }
     @media (prefers-reduced-motion: reduce){
-      .bgFx__aurora, .bgFx__shine{ animation: none !important; }
+      .bgFx__aurora, .bgFx__shine, .stickyBar::before, .stickyBar::after{ animation: none !important; }
     }
     h1{margin:0; font-size:20px; letter-spacing:.2px}
     .sub{color:var(--muted); font-size:12px; margin-top:6px}
@@ -97,21 +97,56 @@
       top:0;
       z-index:50;
       width:100%;
-      padding:16px 20px;
+      padding:14px 20px;
       background: rgba(12,16,24,.72);
       backdrop-filter: blur(12px);
       border-bottom:0;
       transition: box-shadow .2s ease;
+      overflow:hidden;
+    }
+    .stickyBar::before{
+      content:"";
+      position:absolute;
+      inset:-40% -10% -10% -10%;
+      background:
+        radial-gradient(60% 80% at 20% 10%, rgba(106,169,255,.18), transparent 60%),
+        radial-gradient(50% 70% at 80% 0%, rgba(65,209,125,.18), transparent 60%),
+        linear-gradient(120deg, rgba(255,255,255,.06), rgba(0,0,0,0) 55%);
+      animation: stickyAurora 10s ease-in-out infinite;
+      pointer-events:none;
+      z-index:-1;
+    }
+    .stickyBar::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='80' viewBox='0 0 180 80'><defs><pattern id='p' width='180' height='80' patternUnits='userSpaceOnUse'><path d='M0 40 C30 10 60 10 90 40 C120 70 150 70 180 40' fill='none' stroke='rgba(255,255,255,0.08)' stroke-width='1.2'/><circle cx='20' cy='20' r='1.6' fill='rgba(255,255,255,0.10)'/><circle cx='140' cy='60' r='1.6' fill='rgba(255,255,255,0.10)'/></pattern></defs><rect width='100%25' height='100%25' fill='url(%23p)'/></svg>");
+      background-size: 220px 110px;
+      opacity:.55;
+      mix-blend-mode: soft-light;
+      animation: svgDrift 14s linear infinite;
+      pointer-events:none;
+      z-index:-1;
     }
     .stickyBar.isScrolled{
       box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    @keyframes stickyAurora{
+      0%{ transform: translate3d(-6%, -4%, 0) rotate(0deg); opacity:.7; }
+      50%{ transform: translate3d(4%, 2%, 0) rotate(4deg); opacity:.95; }
+      100%{ transform: translate3d(-6%, -4%, 0) rotate(0deg); opacity:.7; }
+    }
+    @keyframes svgDrift{
+      0%{ background-position: 0 0; }
+      100%{ background-position: 220px 110px; }
     }
     .barTop{
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      margin-bottom:12px;
+      margin-bottom:10px;
     }
     .barTitleMain{
       font-size:16px;
@@ -121,7 +156,7 @@
     .barGrid{
       display:grid;
       grid-template-columns: 1.2fr 1fr;
-      gap:16px;
+      gap:12px;
     }
     .barTitle{
       font-size:12px;
@@ -133,8 +168,40 @@
     .barPanel{
       border:1px solid rgba(255,255,255,.10);
       border-radius:14px;
-      padding:12px;
+      padding:10px;
       background: rgba(0,0,0,.12);
+    }
+    .kpiStrip{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(65,209,125,.08), rgba(0,0,0,.10));
+      margin: 10px 0 0 0;
+    }
+    .kpiLeft{ display:flex; flex-direction:column; gap:4px; min-width:240px; }
+    .kpiLbl{ font-size:12px; color:var(--muted); letter-spacing:.2px; }
+    .kpiRight{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .kpiVal{
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.2px;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpiMeta{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
     }
     .linkBtn{
       width:auto;
@@ -200,19 +267,16 @@
     .panel--summary .panelBody{
       overflow:hidden;
       gap:10px;
-      padding:12px 14px 14px;
+      padding:10px 12px 16px;
+      box-shadow: inset 0 -18px 26px rgba(0,0,0,.25);
     }
     .panel--summary .tableWrap{
       max-height:none;
     }
     .panel--summary .outGrid{
-      gap:8px;
+      gap:12px;
     }
-    .panel--summary table th,
-    .panel--summary table td{
-      padding:8px 8px;
-      font-size:12px;
-    }
+    .panel--summary .hd .k{ font-size:12px; }
     .panel--summary .chartWrap--cards{
       padding:10px;
     }
@@ -298,6 +362,8 @@
       .barGrid{grid-template-columns:1fr}
       .chartRow{grid-template-columns:1fr}
       .navBtn{display:none}
+      .kpiStrip{ flex-direction:column; align-items:flex-start; }
+      .kpiRight{ width:100%; justify-content:space-between; }
     }
 
     .card{
@@ -677,19 +743,68 @@
       display:flex;
       flex-direction:column;
       gap:6px;
+      position:relative;
+    }
+    .contribCard.isPassive{
+      opacity:.75;
+    }
+    .contribBadge{
+      position:absolute;
+      top:8px;
+      right:8px;
+      font-size:10px;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px dashed rgba(255,255,255,.25);
+      color:var(--muted);
+      background: rgba(0,0,0,.18);
     }
     .contribCard .lbl{ font-size:11px; color:var(--muted); letter-spacing:.2px; }
     .contribCard .val{ font-family: var(--mono); font-size:14px; font-weight:800; }
+    .contribMeta{
+      font-size:11px;
+      color:var(--muted);
+      line-height:1.35;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
     .contribBar{
       height:6px;
       border-radius:999px;
       background: rgba(255,255,255,.08);
       overflow:hidden;
     }
+    .contribBar--dashed{
+      height:6px;
+      border-radius:999px;
+      border:1px dashed rgba(255,255,255,.22);
+      background: transparent;
+    }
     .contribBar > span{
       display:block;
       height:100%;
       border-radius:999px;
+    }
+    .summaryFooter{
+      margin-top:4px;
+      padding:10px 12px 12px;
+      border-top:1px solid rgba(255,255,255,.08);
+      border-radius:12px;
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.12));
+    }
+    .summaryFooterTitle{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .summaryFooterText{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      font-size:12px;
+      color:var(--text);
+      line-height:1.35;
     }
     .outTable th{background: rgba(106,169,255,.10); text-align:left}
     .outTable th:last-child{ text-align:right }
@@ -701,6 +816,40 @@
     .outTable table td:last-child{ text-align:right; }
     .outTable tbody tr:nth-child(odd):not(.sectionRow) td{
       background: rgba(255,255,255,.015);
+    }
+    .panel--summary .outTable{
+      border-radius:16px;
+    }
+    .panel--summary .kvTable{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+    }
+    .panel--summary .kvTable td{
+      padding:10px 12px;
+      font-size:12px;
+      line-height:1.35;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background: transparent;
+    }
+    .panel--summary .kvTable tr:last-child td{
+      border-bottom:none;
+    }
+    .panel--summary .kvTable td:first-child{
+      text-align:left;
+      color: var(--muted);
+      font-weight:700;
+      letter-spacing:.1px;
+    }
+    .panel--summary .kvTable td:last-child{
+      text-align:right;
+      font-family: var(--mono);
+      font-weight:900;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .panel--summary .kvTable tbody tr:nth-child(odd) td{
+      background: rgba(255,255,255,.012);
     }
     .sectionRow td{
       background: rgba(0,0,0,.25);
