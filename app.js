@@ -9,6 +9,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // ====== FORMAT ======
   const TL = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const TL4 = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+  const QTY = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 6 });
   const $ = (id) => document.getElementById(id);
 
 /* =========================
@@ -50,6 +51,10 @@ const toNum = (s) => {
   const fmtSignedPct = (n) => Number.isFinite(n) ? `${sign(n)}%${TL.format(n)}` : "—";
   const HISTORY_KEY = "onur_portfolio_history_v1";
   const HISTORY_SELECT_KEY = "onur_portfolio_history_select_v1";
+  const TX_KEY = "gmsweb_tx_v1";
+  const TX_SEED_VERSION_KEY = "gmsweb_tx_seed_v1";
+  const TX_SEED_VERSION = "2025-11-10-remove-2g";
+  const COST_OVERRIDES = { ASELS: 206.73 };
   const MAX_HISTORY = 2000;
   const MAX_CHART_POINTS = 120;
   const DAY_AVG_THRESHOLD = 5;
@@ -66,6 +71,7 @@ const toNum = (s) => {
   const nowTR = () => formatStamp(Date.now());
   const clsNum = (n) => n > 0 ? "pos" : (n < 0 ? "neg" : "muted");
   let historyFilter = "all";
+  let txFilter = "all";
   let lastTopProfit = null;
   let selectedHistoryT = null;
   const deleteStack = [];
@@ -110,6 +116,13 @@ const toNum = (s) => {
       help.classList.add("isError");
     }
   };
+  const setTradeHelp = (msg) => {
+    const help = $("tradeHelp");
+    if (help) {
+      help.textContent = msg;
+      help.classList.remove("isError");
+    }
+  };
   const clearTradeError = () => {
     const help = $("tradeHelp");
     if (help) {
@@ -126,6 +139,20 @@ const toNum = (s) => {
     const d = new Date(ms);
     return `${d.getDate()} ${monthsTR[d.getMonth()]} ${d.getFullYear()}`;
   };
+  const formatDate = (ms) => {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  };
+  const formatTime = (ms) => {
+    const d = new Date(ms);
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  };
+  const roundTo = (n, digits) => {
+    if (!Number.isFinite(n)) return NaN;
+    const pow = 10 ** digits;
+    return Math.round(n * pow) / pow;
+  };
+  const fmtQty = (n) => Number.isFinite(n) ? QTY.format(n) : "—";
 
   const downsampleDaily = (points, { threshold, maxPoints }) => {
     if (!points.length) return [];
@@ -234,51 +261,259 @@ const toNum = (s) => {
   let state = normalizeState(load());
   let lastCalc = null;
 
+  // ====== LEDGER ======
+  const loadTransactions = () => {
+    try {
+      const data = JSON.parse(localStorage.getItem(TX_KEY) || "[]");
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  };
+  const saveTransactions = (list) => {
+    localStorage.setItem(TX_KEY, JSON.stringify(list));
+  };
+  const makeId = () => {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+    return `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  };
+  const buildHash = (tx) => {
+    const dtBucket = Math.floor(tx.dt / 60000);
+    const qtyR = roundTo(tx.qty, 6);
+    const unitPriceR = roundTo(tx.unitPrice, 6);
+    const totalR = roundTo(tx.totalAmount, 2);
+    const asset = String(tx.asset || "").toUpperCase();
+    const side = String(tx.side || "").toUpperCase();
+    return `${dtBucket}|${asset}|${side}|${qtyR}|${unitPriceR}|${totalR}`;
+  };
+  const mergeTransactions = (incoming) => {
+    const existing = loadTransactions();
+    const set = new Set(existing.map(t => t.hash));
+    const onlyNew = incoming.filter(t => t && t.hash && !set.has(t.hash));
+    const merged = [...existing, ...onlyNew].sort((a, b) => a.dt - b.dt);
+    saveTransactions(merged);
+    return {
+      added: onlyNew.length,
+      duplicates: Math.max(0, incoming.length - onlyNew.length),
+      merged
+    };
+  };
+  const parseCsvRows = (text) => {
+    const rows = [];
+    let row = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === "\"") {
+        const next = text[i + 1];
+        if (inQuotes && next === "\"") {
+          cur += "\"";
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+      if (ch === "\n" && !inQuotes) {
+        row.push(cur);
+        rows.push(row);
+        row = [];
+        cur = "";
+        continue;
+      }
+      if (ch === "\r") continue;
+      if (ch === "," && !inQuotes) {
+        row.push(cur);
+        cur = "";
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.length || row.length) {
+      row.push(cur);
+      rows.push(row);
+    }
+    return rows;
+  };
+  const parseCsv = (text) => {
+    const rows = parseCsvRows(text);
+    if (!rows.length) {
+      return { txs: [], read: 0, errors: 0 };
+    }
+    const header = rows.shift().map(h => h.trim());
+    const txs = [];
+    let errors = 0;
+    rows.forEach((row) => {
+      if (!row.length || row.every(cell => !String(cell || "").trim())) return;
+      const obj = {};
+      header.forEach((key, idx) => {
+        obj[key] = row[idx] != null ? String(row[idx]).trim() : "";
+      });
+      const date = obj.timestamp_date;
+      const time = obj.timestamp_time || "";
+      const dt = Date.parse(`${date}T${time || "12:00"}:00`);
+      const qty = toNum(obj.qty);
+      const unitPrice = toNum(obj.unit_price);
+      const totalAmountRaw = toNum(obj.total_amount);
+      const totalAmount = Number.isFinite(totalAmountRaw)
+        ? totalAmountRaw
+        : (Number.isFinite(qty) && Number.isFinite(unitPrice) ? roundTo(qty * unitPrice, 2) : NaN);
+      if (!date || !Number.isFinite(dt) || !Number.isFinite(qty) || !Number.isFinite(unitPrice) || !Number.isFinite(totalAmount)) {
+        errors += 1;
+        return;
+      }
+      const tx = {
+        id: makeId(),
+        dt,
+        date,
+        time: time || "",
+        platform: obj.platform || "",
+        asset: obj.asset || "",
+        assetType: obj.asset_type || "other",
+        side: String(obj.side || "").toUpperCase() === "SELL" ? "SELL" : "BUY",
+        qty,
+        qtyUnit: obj.qty_unit || "",
+        unitPrice,
+        currency: obj.currency || "TRY",
+        totalAmount,
+        source: "csv",
+        hash: ""
+      };
+      tx.hash = buildHash(tx);
+      txs.push(tx);
+    });
+    return { txs, read: rows.length, errors };
+  };
+  const SEED_CSV = `timestamp_date,timestamp_time,platform,asset,asset_type,side,qty,qty_unit,unit_price,currency,total_amount,fee_amount,fee_currency,notes,source_image_index,row_confidence
+2025-10-20,,KuveytTurk,ASELS,stock,BUY,100,adet,203.300,TRY,20330.000,,,,"screen_visible_row",1,0.98
+2025-10-21,,KuveytTurk,ALTIN,commodity,BUY,50,adet,76.390,TRY,3819.500,,,,"screen_visible_row",1,0.98
+2025-10-22,,KuveytTurk,ALTIN,commodity,BUY,1,adet,70.580,TRY,70.580,,,,"screen_visible_row",1,0.98
+2025-10-22,,KuveytTurk,ASELS,stock,SELL,100,adet,211.300,TRY,21130.000,,,,"screen_visible_row",1,0.98
+2025-10-22,,KuveytTurk,ASELS,stock,BUY,100,adet,211.400,TRY,21140.000,,,,"screen_visible_row",1,0.98
+2025-10-23,,KuveytTurk,ALTIN,commodity,BUY,2,adet,67.920,TRY,135.840,,,,"screen_visible_row",1,0.98
+2025-11-04,16:54,KuveytTurk,ALT(gr),commodity,BUY,3.00,gr,5419.64073,TRY,16258.92,,,,"screen_visible_row",2,0.95
+2025-11-05,,KuveytTurk,ASELS,stock,BUY,4,adet,199.400,TRY,797.600,,,,"screen_visible_row",2,0.98
+2025-11-05,,KuveytTurk,ALTIN,commodity,BUY,1,adet,68.370,TRY,68.370,,,,"screen_visible_row",2,0.98
+2025-11-10,18:00,KuveytTurk,ALT(gr),commodity,SELL,0.13,gr,5474.47740,TRY,711.68,,,,"screen_visible_row",3,0.92
+2025-11-12,,KuveytTurk,ASELS,stock,SELL,4,adet,184.400,TRY,737.600,,,,"screen_visible_row",2,0.98
+2025-11-12,,KuveytTurk,ALTIN,commodity,SELL,54,adet,73.110,TRY,3947.940,,,,"screen_visible_row",2,0.98
+2025-11-17,,KuveytTurk,ALTIN,commodity,BUY,27,adet,73.280,TRY,1978.560,,,,"screen_visible_row",2,0.98
+2025-11-17,,KuveytTurk,ASELS,stock,BUY,13,adet,185.400,TRY,2410.200,,,,"screen_visible_row",2,0.98
+2025-11-19,,KuveytTurk,ALTIN,commodity,BUY,28,adet,73.840,TRY,2067.520,,,,"screen_visible_row",4,0.98
+2025-11-24,,KuveytTurk,ASELS,stock,BUY,1,adet,183.100,TRY,183.100,,,,"screen_visible_row",4,0.98
+2025-11-25,,KuveytTurk,ASELS,stock,BUY,1,adet,180.200,TRY,180.200,,,,"screen_visible_row",4,0.98
+2025-11-27,,KuveytTurk,ASELS,stock,BUY,1,adet,184.700,TRY,184.700,,,,"screen_visible_row",4,0.98
+2025-12-05,,KuveytTurk,ALTIN,commodity,BUY,2,adet,77.490,TRY,154.980,,,,"screen_visible_row",4,0.98
+2025-12-09,,KuveytTurk,ASELS,stock,BUY,11,adet,200.200,TRY,2202.200,,,,"screen_visible_row",5,0.98
+2025-12-09,,KuveytTurk,ASELS,stock,SELL,15,adet,200.500,TRY,3007.500,,,,"screen_visible_row",5,0.98
+2025-12-11,,KuveytTurk,ALTIN,commodity,SELL,57,adet,78.730,TRY,4487.610,,,,"screen_visible_row",5,0.98
+2025-12-15,,KuveytTurk,ASELS,stock,SELL,45,adet,211.700,TRY,9526.500,,,,"screen_visible_row",5,0.98
+2025-12-16,09:02,KuveytTurk,GMS,commodity,BUY,1.00,gr,86.82130,TRY,86.82,,,,"screen_visible_row",6,0.96
+2025-12-17,09:01,KuveytTurk,GMS,commodity,BUY,1.00,gr,91.70649,TRY,91.71,,,,"screen_visible_row",6,0.96
+2025-12-18,09:02,KuveytTurk,GMS,commodity,BUY,1.00,gr,91.83064,TRY,91.83,,,,"screen_visible_row",6,0.96
+2025-12-19,09:02,KuveytTurk,GMS,commodity,BUY,1.00,gr,91.16453,TRY,91.16,,,,"screen_visible_row",6,0.96
+2025-12-19,14:08,KuveytTurk,GMS,commodity,BUY,200.00,gr,91.30910,TRY,18261.82,,,,"screen_visible_row",6,0.98
+2025-12-22,11:11,KuveytTurk,GMS,commodity,BUY,1.00,gr,95.61309,TRY,95.61,,,,"screen_visible_row",6,0.96
+2025-12-23,14:05,KuveytTurk,GMS,commodity,BUY,1.00,gr,96.67410,TRY,96.67,,,,"screen_visible_row",7,0.96
+2025-12-24,10:58,KuveytTurk,GMS,commodity,BUY,1.00,gr,100.13353,TRY,100.13,,,,"screen_visible_row",7,0.96
+2025-12-25,10:06,KuveytTurk,GMS,commodity,BUY,1.00,gr,100.02677,TRY,100.03,,,,"screen_visible_row",7,0.96
+2025-12-26,10:26,KuveytTurk,GMS,commodity,BUY,1.00,gr,103.65914,TRY,103.66,,,,"screen_visible_row",7,0.96
+2025-12-29,10:15,KuveytTurk,ALT(gr),commodity,SELL,38.00,gr,6102.74051,TRY,231904.14,,,,"screen_visible_row",7,0.98
+2025-12-29,13:23,KuveytTurk,GMS,commodity,BUY,1.00,gr,105.04414,TRY,105.04,,,,"screen_visible_row",7,0.96
+2025-12-30,14:07,KuveytTurk,GMS,commodity,BUY,1.00,gr,103.91004,TRY,103.91,,,,"screen_visible_row",8,0.96
+2025-12-31,10:26,KuveytTurk,GMS,commodity,BUY,5.00,gr,100.50400,TRY,502.52,,,,"screen_visible_row",8,0.96
+2026-01-07,16:03,KuveytTurk,GMS,commodity,SELL,6.00,gr,107.93632,TRY,647.62,,,,"screen_visible_row",8,0.96
+2026-01-09,14:34,KuveytTurk,GMS,commodity,SELL,28.00,gr,106.83400,TRY,2991.35,,,,"screen_visible_row",8,0.96
+2026-01-16,16:27,KuveytTurk,GMS,commodity,SELL,12.00,gr,121.73791,TRY,1460.85,,,,"screen_visible_row",8,0.96
+2026-01-19,10:08,KuveytTurk,GMS,commodity,SELL,20.00,gr,128.86040,TRY,2577.21,,,,"screen_visible_row",8,0.96`;
+
 
   // ====== CALC ======
-  function compute(silverPx, asPx, ucPxOpt) {
-    const soldG = state.sales.silver.soldG;
-    const realized = state.sales.silver.realizedProfit;
-    const remainG = CFG.silver.totalBuyG - soldG;
+  function computeFromLedger(silverPx, asPx, ucPxOpt) {
+    const txs = loadTransactions();
+    const calcAsset = (asset, price) => {
+      const isAsset = (t) => String(t.asset || "").toUpperCase() === asset;
+      const buys = txs.filter(t => isAsset(t) && t.side === "BUY");
+      const sells = txs.filter(t => isAsset(t) && t.side === "SELL");
+      const sumQtyBuy = buys.reduce((acc, t) => acc + t.qty, 0);
+      const sumCostBuy = buys.reduce((acc, t) => acc + t.totalAmount, 0);
+      const sumQtySell = sells.reduce((acc, t) => acc + t.qty, 0);
+      let avgCost = sumQtyBuy > 0 ? (sumCostBuy / sumQtyBuy) : NaN;
+      if (Number.isFinite(COST_OVERRIDES[asset])) {
+        avgCost = COST_OVERRIDES[asset];
+      }
+      const remain = sumQtyBuy - sumQtySell;
+      const realized = Number.isFinite(avgCost)
+        ? sells.reduce((acc, t) => acc + t.qty * (t.unitPrice - avgCost), 0)
+        : NaN;
+      const costRemain = Number.isFinite(avgCost) ? (remain * avgCost) : NaN;
+      const valueRemain = Number.isFinite(price) ? (remain * price) : NaN;
+      const unreal = (Number.isFinite(price) && Number.isFinite(avgCost)) ? (remain * (price - avgCost)) : NaN;
+      const net = (Number.isFinite(unreal) && Number.isFinite(realized)) ? (unreal + realized) : NaN;
+      const netPct = Number.isFinite(costRemain) && costRemain !== 0 ? (net / costRemain * 100) : NaN;
+      return {
+        sumQtyBuy,
+        sumCostBuy,
+        sumQtySell,
+        avgCost,
+        remain,
+        realized,
+        unreal,
+        net,
+        netPct,
+        costRemain,
+        valueRemain
+      };
+    };
 
-    const costRemain = remainG * CFG.silver.avgCost;
-    const valueRemain = remainG * silverPx;
-    const unreal = valueRemain - costRemain;
-    const silverNet = unreal + realized;
-    const silverNetPct = (costRemain > 0) ? (silverNet / costRemain * 100) : NaN;
-
-    const soldTheo = soldG * (silverPx - CFG.silver.avgCost); // theor
-    const missed = soldTheo - realized;
-    const totalTheo = CFG.silver.totalBuyG * (silverPx - CFG.silver.avgCost);
-
-    const asSold = state.sales.aselsan.soldQty;
-    const asRealized = state.sales.aselsan.realizedProfit;
-    const asRemain = CFG.aselsan.qty - asSold;
-    const asCostRemain = asRemain * CFG.aselsan.cost;
-    const asValue = asRemain * asPx;
-    const asUnreal = asValue - asCostRemain;
-    const asNet = asUnreal + asRealized;
-    const asPct = (asCostRemain > 0) ? (asNet / asCostRemain * 100) : NaN;
-
-    const ucCostTot = CFG.ucaym.qty * CFG.ucaym.cost;
+    const silver = calcAsset("GMS", silverPx);
+    const aselsan = calcAsset("ASELS", asPx);
     const ucHas = Number.isFinite(ucPxOpt);
-    const ucSold = state.sales.ucaym.soldQty;
-    const ucRealized = state.sales.ucaym.realizedProfit;
-    const ucRemain = CFG.ucaym.qty - ucSold;
-    const ucCostRemain = ucRemain * CFG.ucaym.cost;
-    const ucValue = ucHas ? ucRemain * ucPxOpt : NaN;
-    const ucUnreal = ucHas ? (ucValue - ucCostRemain) : NaN;
-    const ucNet = ucHas ? (ucUnreal + ucRealized) : NaN;
+    const ucaym = calcAsset("UCAYM", ucHas ? ucPxOpt : NaN);
 
-    const totalProfit = silverNet + asNet + (ucHas ? ucNet : 0);
-    const totalValue  = valueRemain + asValue + (ucHas ? ucValue : 0);
+    const totalProfit = (Number.isFinite(silver.net) ? silver.net : 0)
+      + (Number.isFinite(aselsan.net) ? aselsan.net : 0)
+      + (ucHas && Number.isFinite(ucaym.net) ? ucaym.net : 0);
+    const totalValue = (Number.isFinite(silver.valueRemain) ? silver.valueRemain : 0)
+      + (Number.isFinite(aselsan.valueRemain) ? aselsan.valueRemain : 0)
+      + (ucHas && Number.isFinite(ucaym.valueRemain) ? ucaym.valueRemain : 0);
 
     return {
-      inputs:{ silverPx, asPx, ucPxOpt, ucHas },
-      silver:{ soldG, remainG, realized, unreal, net: silverNet, netPct: silverNetPct, costRemain, valueRemain, soldTheo, missed, totalTheo },
-      aselsan:{ qty: CFG.aselsan.qty, remainQty: asRemain, cost: CFG.aselsan.cost, costRemain: asCostRemain, value: asValue, profit: asNet, pct: asPct },
-      ucaym:{ qty: CFG.ucaym.qty, remainQty: ucRemain, cost: CFG.ucaym.cost, costRemain: ucCostRemain, value: ucValue, profit: ucNet, has: ucHas },
-      totals:{ totalProfit, totalValue }
+      inputs: { silverPx, asPx, ucPxOpt, ucHas },
+      silver: {
+        soldG: silver.sumQtySell,
+        remainG: silver.remain,
+        realized: silver.realized,
+        unreal: silver.unreal,
+        net: silver.net,
+        netPct: silver.netPct,
+        avgCost: silver.avgCost,
+        costRemain: silver.costRemain,
+        valueRemain: silver.valueRemain,
+        soldTheo: NaN,
+        missed: NaN,
+        totalTheo: NaN
+      },
+      aselsan: {
+        qty: aselsan.sumQtyBuy,
+        remainQty: aselsan.remain,
+        cost: aselsan.avgCost,
+        costRemain: aselsan.costRemain,
+        value: aselsan.valueRemain,
+        profit: aselsan.net,
+        pct: aselsan.netPct
+      },
+      ucaym: {
+        qty: ucaym.sumQtyBuy,
+        remainQty: ucaym.remain,
+        cost: ucaym.avgCost,
+        costRemain: ucaym.costRemain,
+        value: ucaym.valueRemain,
+        profit: ucaym.net,
+        has: ucHas
+      },
+      totals: { totalProfit, totalValue }
     };
   }
 
@@ -377,6 +612,7 @@ const toNum = (s) => {
 
   // ===== GÜMÜŞ =====
   add(tbSilver, "Gümüş kalan", `${TL.format(calc.silver.remainG)} g`);
+  add(tbSilver, "Gümüş ağırlıklı maliyet", Number.isFinite(calc.silver.avgCost) ? `${TL4.format(calc.silver.avgCost)} ₺/g` : "—");
   add(tbSilver, "Gümüş anlık fiyat", `${TL4.format(calc.inputs.silverPx)} ₺/g`);
   add(tbSilver, "Gümüş güncel değer", fmtTL(calc.silver.valueRemain));
   add(tbSilver, "Gümüş net kâr", fmtSignedTL(calc.silver.net), clsNum(calc.silver.net));
@@ -384,6 +620,7 @@ const toNum = (s) => {
 
   // ===== ASELSAN =====
   add(tbAselsan, "ASELSAN miktar", `${calc.aselsan.remainQty} adet`);
+  add(tbAselsan, "ASELSAN ağırlıklı maliyet", Number.isFinite(calc.aselsan.cost) ? `${TL.format(calc.aselsan.cost)} ₺` : "—");
   add(tbAselsan, "ASELSAN anlık fiyat", `${TL.format(calc.inputs.asPx)} ₺`);
   add(tbAselsan, "ASELSAN güncel değer", fmtTL(calc.aselsan.value));
   add(tbAselsan, "ASELSAN net kâr", fmtSignedTL(calc.aselsan.profit), clsNum(calc.aselsan.profit));
@@ -391,6 +628,7 @@ const toNum = (s) => {
 
   // ===== UCAYM =====
   add(tbUcaym, "UCAYM miktar", `${calc.ucaym.remainQty} lot`);
+  add(tbUcaym, "UCAYM ağırlıklı maliyet", calc.ucaym.has && Number.isFinite(calc.ucaym.cost) ? `${TL.format(calc.ucaym.cost)} ₺` : "—");
   add(tbUcaym, "UCAYM anlık fiyat", calc.ucaym.has ? `${TL.format(calc.inputs.ucPxOpt)} ₺` : "—");
   add(tbUcaym, "UCAYM güncel değer", calc.ucaym.has ? fmtTL(calc.ucaym.value) : "—");
   add(tbUcaym, "UCAYM net kâr", calc.ucaym.has ? fmtSignedTL(calc.ucaym.profit) : "—", calc.ucaym.has ? clsNum(calc.ucaym.profit) : "");
@@ -473,15 +711,23 @@ const toNum = (s) => {
     return history.find(h => h.t === t) || null;
   }
 
-  function updateHistoryFilterCounts(history){
-    const filters = $("historyFilters");
+  function updateFilterCounts(items, mode, filters){
     if (!filters) return;
     const todayKey = dayKey(Date.now());
     const counts = {
-      all: history.length,
-      today: history.filter(h => dayKey(h.t) === todayKey).length,
-      silver: history.filter(h => Number.isFinite(h.calc?.inputs?.silverPx)).length,
-      stocks: history.filter(h => Number.isFinite(h.calc?.inputs?.asPx) || Number.isFinite(h.calc?.inputs?.ucPxOpt)).length
+      all: items.length,
+      today: mode === "tx"
+        ? items.filter(t => dayKey(t.dt) === todayKey).length
+        : items.filter(h => dayKey(h.t) === todayKey).length,
+      silver: mode === "tx"
+        ? items.filter(t => String(t.asset || "").toUpperCase() === "GMS").length
+        : items.filter(h => Number.isFinite(h.calc?.inputs?.silverPx)).length,
+      stocks: mode === "tx"
+        ? items.filter(t => {
+          const asset = String(t.asset || "").toUpperCase();
+          return asset === "ASELS" || asset === "UCAYM";
+        }).length
+        : items.filter(h => Number.isFinite(h.calc?.inputs?.asPx) || Number.isFinite(h.calc?.inputs?.ucPxOpt)).length
     };
     filters.querySelectorAll(".chipBtn").forEach((btn) => {
       const key = btn.dataset.filter || "all";
@@ -514,6 +760,26 @@ const toNum = (s) => {
         current.min = Number.isFinite(current.min) ? Math.min(current.min, item.totalProfit) : item.totalProfit;
         current.max = Number.isFinite(current.max) ? Math.max(current.max, item.totalProfit) : item.totalProfit;
       }
+    });
+    return groups;
+  }
+
+  function groupTxByDay(entries){
+    const groups = [];
+    let current = null;
+    entries.forEach((item) => {
+      const key = dayKey(item.dt);
+      if (!current || current.dayKey !== key){
+        current = {
+          dayKey: key,
+          dateLabel: dayLabel(item.dt),
+          items: [],
+          count: 0
+        };
+        groups.push(current);
+      }
+      current.items.push(item);
+      current.count += 1;
     });
     return groups;
   }
@@ -1268,7 +1534,7 @@ const toNum = (s) => {
       }
       return true;
     };
-    updateHistoryFilterCounts(history);
+    updateFilterCounts(history, "snapshot", $("historyFilters"));
     const filtered = history.filter(applyFilter);
     const today = history.filter(h => dayKey(h.t) === todayKey);
     if (selectedHistoryT && !filtered.some(h => h.t === selectedHistoryT)){
@@ -1396,6 +1662,77 @@ const toNum = (s) => {
     }
   }
 
+  function renderTxList(){
+    const list = $("txList");
+    if (!list) return;
+    const meta = $("txMeta");
+    const txs = loadTransactions().slice().sort((a, b) => b.dt - a.dt);
+    const todayKey = dayKey(Date.now());
+    const applyFilter = (t) => {
+      const asset = String(t.asset || "").toUpperCase();
+      if (txFilter === "today") return dayKey(t.dt) === todayKey;
+      if (txFilter === "silver") return asset === "GMS";
+      if (txFilter === "stocks") return asset === "ASELS" || asset === "UCAYM";
+      return true;
+    };
+    updateFilterCounts(txs, "tx", $("txFilters"));
+    const filtered = txs.filter(applyFilter);
+
+    if (meta){
+      const lastT = filtered[0]?.dt;
+      const lastTime = Number.isFinite(lastT) ? `${pad2(new Date(lastT).getHours())}:${pad2(new Date(lastT).getMinutes())}` : "—";
+      meta.textContent = `İşlemler: ${filtered.length} kayıt • Son işlem: ${lastTime}`;
+    }
+
+    if (!filtered.length){
+      list.innerHTML = `
+        <div class="historyEmpty">
+          <div>Henüz işlem yok</div>
+          <div class="mini">CSV import et veya manuel işlem ekle.</div>
+        </div>
+      `;
+      return;
+    }
+
+    const groups = groupTxByDay(filtered);
+    list.innerHTML = groups.map((group) => {
+      const items = group.items.map((t) => {
+        const d = new Date(t.dt);
+        const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        const sideClass = t.side === "BUY" ? "pos" : "neg";
+        const dotColor = t.side === "BUY" ? "var(--good)" : "var(--bad)";
+        const unitPriceStr = t.qtyUnit === "gr"
+          ? `${TL4.format(t.unitPrice)} ₺/g`
+          : `${TL.format(t.unitPrice)} ₺`;
+        const qtyStr = `${fmtQty(t.qty)} ${t.qtyUnit}`;
+        const totalStr = fmtTL(t.totalAmount);
+        return `
+          <div class="historyItem">
+            <div class="historyDot" style="background:${dotColor}"></div>
+            <div class="historyCard">
+              <div class="historyTop">
+                <div class="historyNet ${sideClass}">${t.asset} ${t.side}</div>
+                <div class="historyTopRight">
+                  <div class="historyTime">${time}</div>
+                </div>
+              </div>
+              <div class="historySub">${qtyStr} • ${unitPriceStr}</div>
+              <div class="historyDelta">${totalStr}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+      return `
+        <div class="historyDayHeader">
+          <div>${group.dateLabel}</div>
+          <div class="mini">${group.count} kayıt</div>
+        </div>
+        ${items}
+      `;
+    }).join("");
+  }
+
+
   function renderCharts(calc){
     const history = loadHistory();
 
@@ -1455,6 +1792,7 @@ const toNum = (s) => {
     applySummarySelection(calc);
     renderCharts(calc);
     renderHistoryList();
+    renderTxList();
   }
 
   // ====== ACTIONS ======
@@ -1494,12 +1832,32 @@ const toNum = (s) => {
     const stamp = nowTR();
     state.cur = { silverPx, asPx, ucPx: Number.isFinite(ucPx) ? ucPx : null, totalProfit: null, stamp };
 
-    const calc = compute(silverPx, asPx, Number.isFinite(ucPx) ? ucPx : NaN);
+    const calc = computeFromLedger(silverPx, asPx, Number.isFinite(ucPx) ? ucPx : NaN);
     state.cur.totalProfit = calc.totals.totalProfit;
     pushHistory(calc);
 
     save(state);
     syncAll(calc);
+  }
+
+  function refreshFromLedger(){
+    if (Number.isFinite(state.cur.silverPx) && Number.isFinite(state.cur.asPx)) {
+      const calc = computeFromLedger(state.cur.silverPx, state.cur.asPx, Number.isFinite(state.cur.ucPx) ? state.cur.ucPx : NaN);
+      state.cur.totalProfit = calc.totals.totalProfit;
+      save(state);
+      syncAll(calc);
+      return;
+    }
+    renderHistoryList();
+    renderTxList();
+  }
+  function ensureSeededTransactions(){
+    const existing = loadTransactions();
+    const seededVersion = localStorage.getItem(TX_SEED_VERSION_KEY);
+    if (existing.length && seededVersion === TX_SEED_VERSION) return;
+    const parsed = parseCsv(SEED_CSV);
+    saveTransactions(parsed.txs);
+    localStorage.setItem(TX_SEED_VERSION_KEY, TX_SEED_VERSION);
   }
 
   function getActiveValue(groupId, fallback) {
@@ -1529,48 +1887,50 @@ const toNum = (s) => {
       setTradeError("İşlem için miktar + fiyat gir (pozitif sayı).");
       return;
     }
-
-    const cfgMap = {
-      silver: { max: CFG.silver.totalBuyG, cost: CFG.silver.avgCost, unit: "g" },
-      aselsan:{ max: CFG.aselsan.qty, cost: CFG.aselsan.cost, unit: "adet" },
-      ucaym: { max: CFG.ucaym.qty, cost: CFG.ucaym.cost, unit: "lot" },
+    const assetMap = {
+      silver: { code: "GMS", type: "commodity", unit: "gr" },
+      aselsan: { code: "ASELS", type: "stock", unit: "adet" },
+      ucaym: { code: "UCAYM", type: "other", unit: "lot" }
     };
-    const cfg = cfgMap[asset];
-    const saleState = state.sales[asset];
-    const sign = type === "sell" ? 1 : -1;
-    const nextSold = saleState.soldQty != null
-      ? saleState.soldQty + sign * q
-      : saleState.soldG + sign * q;
-
-    if (nextSold < 0) {
-      setTradeError("Alış, mevcut satışı sıfırın altına indiremez.");
-      return;
-    }
-    if (nextSold > cfg.max) {
-      setTradeError(`Maksimum satılabilir: ${TL.format(cfg.max)} ${cfg.unit}`);
-      return;
-    }
-
-    const addProfit = sign * q * (px - cfg.cost);
-    if (saleState.soldQty != null) {
-      saleState.soldQty = nextSold;
-    } else {
-      saleState.soldG = nextSold;
-    }
-    saleState.realizedProfit += addProfit;
+    const info = assetMap[asset] || assetMap.silver;
+    const dt = Date.now();
+    const tx = {
+      id: makeId(),
+      dt,
+      date: formatDate(dt),
+      time: formatTime(dt),
+      platform: "manual",
+      asset: info.code,
+      assetType: info.type,
+      side: type === "sell" ? "SELL" : "BUY",
+      qty: q,
+      qtyUnit: info.unit,
+      unitPrice: px,
+      currency: "TRY",
+      totalAmount: roundTo(q * px, 2),
+      source: "manual",
+      hash: ""
+    };
+    tx.hash = buildHash(tx);
+    const merged = mergeTransactions([tx]);
 
     clearTradeError();
     $("tradeQty").value = "";
     $("tradePx").value = "";
-    save(state);
+
+    if (merged.added === 0) {
+      setTradeHelp("0 eklendi, 1 duplicate atlandı.");
+    } else {
+      setTradeHelp("1 eklendi (duplicate ise eklenmedi).");
+    }
 
     if (Number.isFinite(state.cur.silverPx) && Number.isFinite(state.cur.asPx)) {
-      const calc = compute(state.cur.silverPx, state.cur.asPx, Number.isFinite(state.cur.ucPx) ? state.cur.ucPx : NaN);
+      const calc = computeFromLedger(state.cur.silverPx, state.cur.asPx, Number.isFinite(state.cur.ucPx) ? state.cur.ucPx : NaN);
       state.cur.totalProfit = calc.totals.totalProfit;
       save(state);
       syncAll(calc);
     } else {
-      setTradeError("İşlem eklendi. Güncel fiyatları girip hesapla.");
+      setTradeHelp("İşlem eklendi. Güncel fiyatları girip hesapla.");
     }
   }
 
@@ -1607,6 +1967,7 @@ const toNum = (s) => {
   $("btnCalc").addEventListener("click", calcAndPersist);
   $("btnAddTrade").addEventListener("click", addTrade);
   $("btnReset").addEventListener("click", resetAll);
+  ensureSeededTransactions();
   const tradeClear = $("btnTradeClear");
   if (tradeClear) {
     tradeClear.addEventListener("click", () => {
@@ -1633,6 +1994,17 @@ const toNum = (s) => {
       btn.classList.add("isActive");
       historyFilter = btn.dataset.filter || "all";
       renderHistoryList();
+    });
+  }
+  const txFilters = $("txFilters");
+  if (txFilters) {
+    txFilters.addEventListener("click", (e) => {
+      const btn = e.target.closest(".chipBtn");
+      if (!btn || !txFilters.contains(btn)) return;
+      txFilters.querySelectorAll(".chipBtn").forEach((b) => b.classList.remove("isActive"));
+      btn.classList.add("isActive");
+      txFilter = btn.dataset.filter || "all";
+      renderTxList();
     });
   }
 
@@ -2022,7 +2394,7 @@ const toNum = (s) => {
 
   // initial render if have prices
   if (Number.isFinite(state.cur.silverPx) && Number.isFinite(state.cur.asPx)) {
-    const calc = compute(state.cur.silverPx, state.cur.asPx, Number.isFinite(state.cur.ucPx) ? state.cur.ucPx : NaN);
+    const calc = computeFromLedger(state.cur.silverPx, state.cur.asPx, Number.isFinite(state.cur.ucPx) ? state.cur.ucPx : NaN);
     state.cur.totalProfit = calc.totals.totalProfit;
     save(state);
     syncAll(calc);
@@ -2035,5 +2407,6 @@ const toNum = (s) => {
       renderOutputTable(entry.calc, entry.stamp || formatStamp(entry.t));
     }
     renderHistoryList();
+    renderTxList();
   }
 });

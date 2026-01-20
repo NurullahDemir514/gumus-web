@@ -240,11 +240,32 @@
             </div>
           </div>
         </section>
+
+        <section class="panel">
+          <div class="panelInner">
+            <div class="panelHd">
+              <div>
+                <div class="k">İşlemler</div>
+                <div class="mini" id="txMeta">İşlemler: 0 kayıt • Son işlem: —</div>
+              </div>
+              <div class="chipGroup" id="txFilters">
+                <button class="chipBtn isActive" data-filter="all">Tümü <span class="chipCount">0</span></button>
+                <button class="chipBtn" data-filter="today">Bugün <span class="chipCount">0</span></button>
+                <button class="chipBtn" data-filter="silver">Gümüş <span class="chipCount">0</span></button>
+                <button class="chipBtn" data-filter="stocks">Hisse <span class="chipCount">0</span></button>
+              </div>
+            </div>
+            <div class="panelBody">
+              <div class="historyList" id="txList"></div>
+            </div>
+          </div>
+        </section>
       </div>
       <div class="sliderDots" id="sliderDots" role="tablist" aria-label="Paneller">
         <button class="dot isActive" role="tab" aria-selected="true" data-index="0" aria-label="Panel 1"></button>
         <button class="dot" role="tab" aria-selected="false" data-index="1" aria-label="Panel 2"></button>
         <button class="dot" role="tab" aria-selected="false" data-index="2" aria-label="Panel 3"></button>
+        <button class="dot" role="tab" aria-selected="false" data-index="3" aria-label="Panel 4"></button>
       </div>
     </div>
   </div>
