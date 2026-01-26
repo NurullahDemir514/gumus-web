@@ -52,8 +52,6 @@ const toNum = (s) => {
   const HISTORY_KEY = "onur_portfolio_history_v1";
   const HISTORY_SELECT_KEY = "onur_portfolio_history_select_v1";
   const TX_KEY = "gmsweb_tx_v1";
-  const TX_SEED_VERSION_KEY = "gmsweb_tx_seed_v1";
-  const TX_SEED_VERSION = "2025-11-10-remove-2g";
   const COST_OVERRIDES = { ASELS: 206.73 };
   const MAX_HISTORY = 2000;
   const MAX_CHART_POINTS = 120;
@@ -385,50 +383,6 @@ const toNum = (s) => {
     });
     return { txs, read: rows.length, errors };
   };
-  const SEED_CSV = `timestamp_date,timestamp_time,platform,asset,asset_type,side,qty,qty_unit,unit_price,currency,total_amount,fee_amount,fee_currency,notes,source_image_index,row_confidence
-2025-10-20,,KuveytTurk,ASELS,stock,BUY,100,adet,203.300,TRY,20330.000,,,,"screen_visible_row",1,0.98
-2025-10-21,,KuveytTurk,ALTIN,commodity,BUY,50,adet,76.390,TRY,3819.500,,,,"screen_visible_row",1,0.98
-2025-10-22,,KuveytTurk,ALTIN,commodity,BUY,1,adet,70.580,TRY,70.580,,,,"screen_visible_row",1,0.98
-2025-10-22,,KuveytTurk,ASELS,stock,SELL,100,adet,211.300,TRY,21130.000,,,,"screen_visible_row",1,0.98
-2025-10-22,,KuveytTurk,ASELS,stock,BUY,100,adet,211.400,TRY,21140.000,,,,"screen_visible_row",1,0.98
-2025-10-23,,KuveytTurk,ALTIN,commodity,BUY,2,adet,67.920,TRY,135.840,,,,"screen_visible_row",1,0.98
-2025-11-04,16:54,KuveytTurk,ALT(gr),commodity,BUY,3.00,gr,5419.64073,TRY,16258.92,,,,"screen_visible_row",2,0.95
-2025-11-05,,KuveytTurk,ASELS,stock,BUY,4,adet,199.400,TRY,797.600,,,,"screen_visible_row",2,0.98
-2025-11-05,,KuveytTurk,ALTIN,commodity,BUY,1,adet,68.370,TRY,68.370,,,,"screen_visible_row",2,0.98
-2025-11-10,18:00,KuveytTurk,ALT(gr),commodity,SELL,0.13,gr,5474.47740,TRY,711.68,,,,"screen_visible_row",3,0.92
-2025-11-12,,KuveytTurk,ASELS,stock,SELL,4,adet,184.400,TRY,737.600,,,,"screen_visible_row",2,0.98
-2025-11-12,,KuveytTurk,ALTIN,commodity,SELL,54,adet,73.110,TRY,3947.940,,,,"screen_visible_row",2,0.98
-2025-11-17,,KuveytTurk,ALTIN,commodity,BUY,27,adet,73.280,TRY,1978.560,,,,"screen_visible_row",2,0.98
-2025-11-17,,KuveytTurk,ASELS,stock,BUY,13,adet,185.400,TRY,2410.200,,,,"screen_visible_row",2,0.98
-2025-11-19,,KuveytTurk,ALTIN,commodity,BUY,28,adet,73.840,TRY,2067.520,,,,"screen_visible_row",4,0.98
-2025-11-24,,KuveytTurk,ASELS,stock,BUY,1,adet,183.100,TRY,183.100,,,,"screen_visible_row",4,0.98
-2025-11-25,,KuveytTurk,ASELS,stock,BUY,1,adet,180.200,TRY,180.200,,,,"screen_visible_row",4,0.98
-2025-11-27,,KuveytTurk,ASELS,stock,BUY,1,adet,184.700,TRY,184.700,,,,"screen_visible_row",4,0.98
-2025-12-05,,KuveytTurk,ALTIN,commodity,BUY,2,adet,77.490,TRY,154.980,,,,"screen_visible_row",4,0.98
-2025-12-09,,KuveytTurk,ASELS,stock,BUY,11,adet,200.200,TRY,2202.200,,,,"screen_visible_row",5,0.98
-2025-12-09,,KuveytTurk,ASELS,stock,SELL,15,adet,200.500,TRY,3007.500,,,,"screen_visible_row",5,0.98
-2025-12-11,,KuveytTurk,ALTIN,commodity,SELL,57,adet,78.730,TRY,4487.610,,,,"screen_visible_row",5,0.98
-2025-12-15,,KuveytTurk,ASELS,stock,SELL,45,adet,211.700,TRY,9526.500,,,,"screen_visible_row",5,0.98
-2025-12-16,09:02,KuveytTurk,GMS,commodity,BUY,1.00,gr,86.82130,TRY,86.82,,,,"screen_visible_row",6,0.96
-2025-12-17,09:01,KuveytTurk,GMS,commodity,BUY,1.00,gr,91.70649,TRY,91.71,,,,"screen_visible_row",6,0.96
-2025-12-18,09:02,KuveytTurk,GMS,commodity,BUY,1.00,gr,91.83064,TRY,91.83,,,,"screen_visible_row",6,0.96
-2025-12-19,09:02,KuveytTurk,GMS,commodity,BUY,1.00,gr,91.16453,TRY,91.16,,,,"screen_visible_row",6,0.96
-2025-12-19,14:08,KuveytTurk,GMS,commodity,BUY,200.00,gr,91.30910,TRY,18261.82,,,,"screen_visible_row",6,0.98
-2025-12-22,11:11,KuveytTurk,GMS,commodity,BUY,1.00,gr,95.61309,TRY,95.61,,,,"screen_visible_row",6,0.96
-2025-12-23,14:05,KuveytTurk,GMS,commodity,BUY,1.00,gr,96.67410,TRY,96.67,,,,"screen_visible_row",7,0.96
-2025-12-24,10:58,KuveytTurk,GMS,commodity,BUY,1.00,gr,100.13353,TRY,100.13,,,,"screen_visible_row",7,0.96
-2025-12-25,10:06,KuveytTurk,GMS,commodity,BUY,1.00,gr,100.02677,TRY,100.03,,,,"screen_visible_row",7,0.96
-2025-12-26,10:26,KuveytTurk,GMS,commodity,BUY,1.00,gr,103.65914,TRY,103.66,,,,"screen_visible_row",7,0.96
-2025-12-29,10:15,KuveytTurk,ALT(gr),commodity,SELL,38.00,gr,6102.74051,TRY,231904.14,,,,"screen_visible_row",7,0.98
-2025-12-29,13:23,KuveytTurk,GMS,commodity,BUY,1.00,gr,105.04414,TRY,105.04,,,,"screen_visible_row",7,0.96
-2025-12-30,14:07,KuveytTurk,GMS,commodity,BUY,1.00,gr,103.91004,TRY,103.91,,,,"screen_visible_row",8,0.96
-2025-12-31,10:26,KuveytTurk,GMS,commodity,BUY,5.00,gr,100.50400,TRY,502.52,,,,"screen_visible_row",8,0.96
-2026-01-07,16:03,KuveytTurk,GMS,commodity,SELL,6.00,gr,107.93632,TRY,647.62,,,,"screen_visible_row",8,0.96
-2026-01-09,14:34,KuveytTurk,GMS,commodity,SELL,28.00,gr,106.83400,TRY,2991.35,,,,"screen_visible_row",8,0.96
-2026-01-16,16:27,KuveytTurk,GMS,commodity,SELL,12.00,gr,121.73791,TRY,1460.85,,,,"screen_visible_row",8,0.96
-2026-01-19,10:08,KuveytTurk,GMS,commodity,SELL,20.00,gr,128.86040,TRY,2577.21,,,,"screen_visible_row",8,0.96`;
-
-
   // ====== CALC ======
   function computeFromLedger(silverPx, asPx, ucPxOpt) {
     const txs = loadTransactions();
@@ -1851,15 +1805,6 @@ const toNum = (s) => {
     renderHistoryList();
     renderTxList();
   }
-  function ensureSeededTransactions(){
-    const existing = loadTransactions();
-    const seededVersion = localStorage.getItem(TX_SEED_VERSION_KEY);
-    if (existing.length && seededVersion === TX_SEED_VERSION) return;
-    const parsed = parseCsv(SEED_CSV);
-    saveTransactions(parsed.txs);
-    localStorage.setItem(TX_SEED_VERSION_KEY, TX_SEED_VERSION);
-  }
-
   function getActiveValue(groupId, fallback) {
     const group = $(groupId);
     if (!group) return fallback;
@@ -1937,6 +1882,7 @@ const toNum = (s) => {
   function resetAll(){
     if (!confirm("Tüm kayıtlar sıfırlansın mı? (fiyatlar + satışlar)")) return;
     localStorage.removeItem(KEY);
+    localStorage.removeItem(TX_KEY);
     state = (function(){
       const st = defaultState();
       return st;
@@ -1963,11 +1909,286 @@ const toNum = (s) => {
     });
   }
 
+  // ====== PORTFOY OZET PANELI ======
+  const SUMMARY_KEY = "portfolio_summary_prev_v1";
+  const SUMMARY_ASSETS = [
+    {
+      code: "GUMUS",
+      label: "Gümüş",
+      unit: "g",
+      totalBought: 216,
+      avgCost: 91.8105,
+      soldQty: 116,
+      soldTotalTl: 647.62 + 2991.35 + 1460.85 + 2577.21 + 6550.5
+    },
+    {
+      code: "ASELSAN",
+      label: "ASELSAN",
+      unit: "adet",
+      totalBought: 67,
+      avgCost: 206.73,
+      soldQty: 0,
+      soldTotalTl: 0
+    },
+    {
+      code: "UCAYM",
+      label: "UCAYM",
+      unit: "lot",
+      totalBought: 56,
+      avgCost: 18,
+      soldQty: 0,
+      soldTotalTl: 0
+    }
+  ];
+
+  const summaryFmtNumber = (n, decimals) => (
+    new Intl.NumberFormat("tr-TR", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    }).format(n)
+  );
+  const summaryFmtTL = (n) => `${summaryFmtNumber(n, 2)} TL`;
+  const summaryFmtSignedTL = (n) => {
+    const s = n > 0 ? "+" : (n < 0 ? "-" : "");
+    return `${s}${summaryFmtTL(Math.abs(n))}`;
+  };
+  const parseSummaryInput = (raw) => {
+    const t = String(raw || "").trim();
+    if (!t) return { raw: t, value: null, decimals: 0 };
+    const decimalsMatch = t.match(/[.,](\d+)$/);
+    const decimals = decimalsMatch ? decimalsMatch[1].length : 0;
+    const value = toNum(t);
+    return { raw: t, value: Number.isFinite(value) ? value : null, decimals };
+  };
+  const formatInputPrice = (input, type) => {
+    if (input.value == null) return "—";
+    if (type === "silver") {
+      const dec = Math.max(4, input.decimals);
+      return summaryFmtNumber(input.value, dec);
+    }
+    return summaryFmtNumber(input.value, Math.max(2, input.decimals));
+  };
+  const formatInputDiff = (cur, prev, type, allowMissing) => {
+    if (allowMissing && cur.value == null) {
+      return { current: "—", prev: "—", diff: "—" };
+    }
+    if (cur.value == null) return { current: "—", prev: "—", diff: "—" };
+    const current = formatInputPrice(cur, type);
+    const prevFmt = prev && prev.value != null ? formatInputPrice(prev, type) : "—";
+    const diff = prev && prev.value != null
+      ? `${cur.value - prev.value >= 0 ? "+" : ""}${formatInputPrice({ value: Math.abs(cur.value - prev.value), decimals: cur.decimals }, type)}`
+      : "—";
+    return { current, prev: prevFmt, diff };
+  };
+  const readSummarySnapshot = () => {
+    try {
+      const raw = localStorage.getItem(SUMMARY_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      return data && typeof data === "object" ? data : null;
+    } catch {
+      return null;
+    }
+  };
+  const writeSummarySnapshot = (snap) => {
+    localStorage.setItem(SUMMARY_KEY, JSON.stringify(snap));
+  };
+  const computeSummary = (inputs) => {
+    if (!inputs.gms || inputs.gms.value == null || !inputs.aselsan || inputs.aselsan.value == null) return null;
+    const assetData = SUMMARY_ASSETS.map((asset) => {
+      const currentPrice = asset.code === "GUMUS"
+        ? inputs.gms.value
+        : asset.code === "ASELSAN"
+        ? inputs.aselsan.value
+        : inputs.ucaym ? inputs.ucaym.value : null;
+      const hasPrice = asset.code === "UCAYM" ? currentPrice != null : true;
+      const remainingQty = asset.totalBought - asset.soldQty;
+      const remainingCost = remainingQty * asset.avgCost;
+      const currentValue = hasPrice ? remainingQty * currentPrice : null;
+      const unrealized = hasPrice ? remainingQty * (currentPrice - asset.avgCost) : null;
+      const realized = asset.soldQty > 0 ? asset.soldTotalTl - asset.soldQty * asset.avgCost : 0;
+      return {
+        ...asset,
+        currentPrice,
+        hasPrice,
+        remainingQty,
+        remainingCost,
+        currentValue,
+        unrealized,
+        realized
+      };
+    });
+    const portfolioCurrentProfit = assetData.reduce((acc, a) => acc + (a.unrealized == null ? 0 : a.unrealized), 0);
+    const portfolioRealizedProfit = assetData.reduce((acc, a) => acc + a.realized, 0);
+    const portfolioTotalNetProfit = portfolioCurrentProfit + portfolioRealizedProfit;
+    const satmasaydim = assetData.map((asset) => {
+      if (!asset.hasPrice || asset.currentPrice == null) {
+        return { code: asset.code, realized: null, soldTheo: null, missed: null, totalTheo: null };
+      }
+      const soldTheo = asset.soldQty * (asset.currentPrice - asset.avgCost);
+      const totalTheo = asset.totalBought * (asset.currentPrice - asset.avgCost);
+      return {
+        code: asset.code,
+        realized: asset.realized,
+        soldTheo,
+        missed: soldTheo - asset.realized,
+        totalTheo
+      };
+    });
+    return { assetData, portfolioCurrentProfit, portfolioRealizedProfit, portfolioTotalNetProfit, satmasaydim };
+  };
+  const buildSummaryTableRow = (label, values) => {
+    const cells = values.map((v) => `<td>${v}</td>`).join("");
+    return `<tr><td>${label}</td>${cells}</tr>`;
+  };
+  const renderSummaryOutput = (host, payload) => {
+    if (!payload) {
+      host.innerHTML = `<div class="muted">Lütfen geçerli fiyatları girip hesapla.</div>`;
+      return;
+    }
+    const { submittedAt, inputs, prevInputs, output } = payload;
+    const gmsRow = formatInputDiff(inputs.gms, prevInputs ? prevInputs.gms : null, "silver", false);
+    const aselsanRow = formatInputDiff(inputs.aselsan, prevInputs ? prevInputs.aselsan : null, "stock", false);
+    const ucaymRow = formatInputDiff(inputs.ucaym, prevInputs ? prevInputs.ucaym : null, "stock", true);
+    const prevTotal = prevInputs && Number.isFinite(prevInputs.totalNetTl) ? prevInputs.totalNetTl : null;
+    const totalLine = `${summaryFmtTL(output.portfolioTotalNetProfit)} (önceki: ${prevTotal == null ? "—" : summaryFmtTL(prevTotal)} → ${prevTotal == null ? "—" : summaryFmtSignedTL(output.portfolioTotalNetProfit - prevTotal)})`;
+    const header = `
+      <div class="summaryTitle">📌 GÜNCEL PORTFÖY ÖZETİ (Senin verdiğin fiyatlarla)</div>
+      <div class="summaryCard">
+        <div class="summaryCardTitle">Girdi</div>
+        <div class="summaryLine">Tarih/Saat (TR): ${formatStamp(submittedAt)}</div>
+        <div class="summaryLine">Gümüş kur (SAT): ${gmsRow.current} | ${gmsRow.prev} | ${gmsRow.diff}</div>
+        <div class="summaryLine">ASELSAN: ${aselsanRow.current} | ${aselsanRow.prev} | ${aselsanRow.diff}</div>
+        <div class="summaryLine">UCAYM: ${ucaymRow.current} | ${ucaymRow.prev} | ${ucaymRow.diff}</div>
+        <div class="summaryLine">Toplam portföy anlık net kâr: ${totalLine}</div>
+      </div>
+    `;
+    const assetLabels = output.assetData.map((a) => `<th>${a.label}</th>`).join("");
+    const assetCells = (values) => values.map((v) => `<td>${v}</td>`).join("");
+    const rowAsset = (label, values) => `<tr><td>${label}</td>${assetCells(values)}</tr>`;
+    const fmtPriceRow = (asset) => {
+      if (asset.code === "GUMUS") return `${formatInputPrice(inputs.gms, "silver")} TL/g`;
+      if (asset.code === "ASELSAN") return `${formatInputPrice(inputs.aselsan, "stock")} TL`;
+      return inputs.ucaym && inputs.ucaym.value != null ? `${formatInputPrice(inputs.ucaym, "stock")} TL` : "—";
+    };
+    const table1 = `
+      <div class="summaryCard">
+        <div class="summaryCardTitle">1) Varlık Bazlı Durum (Kalan pozisyon kârı)</div>
+        <table class="summaryTable">
+          <thead><tr><th>Kalem</th>${assetLabels}</tr></thead>
+          <tbody>
+            ${rowAsset("Kalan miktar", output.assetData.map((a) => `${summaryFmtNumber(a.remainingQty, 0)} ${a.unit}`))}
+            ${rowAsset("Ortalama maliyet", output.assetData.map((a) => `${summaryFmtNumber(a.avgCost, a.code === "GUMUS" ? 4 : 2)} TL`))}
+            ${rowAsset("Anlık fiyat", output.assetData.map((a) => fmtPriceRow(a)))}
+            ${rowAsset("Güncel değer", output.assetData.map((a) => a.currentValue == null ? "—" : summaryFmtTL(a.currentValue)))}
+            ${rowAsset("Kalan maliyet toplam", output.assetData.map((a) => summaryFmtTL(a.remainingCost)))}
+            ${rowAsset("✅ ŞU ANKİ KÂR (kalan pozisyon)", output.assetData.map((a) => a.unrealized == null ? "—" : summaryFmtTL(a.unrealized)))}
+          </tbody>
+        </table>
+      </div>
+    `;
+    const table2 = `
+      <div class="summaryCard">
+        <div class="summaryCardTitle">2) Satışlardan Elde Edilen Kâr (Realize)</div>
+        <table class="summaryTable">
+          <thead><tr><th>Kalem</th>${assetLabels}</tr></thead>
+          <tbody>
+            ${rowAsset("✅ REALİZE KÂR (satışlardan)", output.assetData.map((a) => summaryFmtTL(a.realized)))}
+          </tbody>
+        </table>
+      </div>
+    `;
+    const table3 = `
+      <div class="summaryCard">
+        <div class="summaryCardTitle">3) Toplamlar</div>
+        <table class="summaryTable">
+          <thead><tr><th>Kalem</th><th>Tutar</th></tr></thead>
+          <tbody>
+            ${buildSummaryTableRow("✅ PORTFÖY ŞU ANKİ KÂR (kalan pozisyon)", [summaryFmtTL(output.portfolioCurrentProfit)])}
+            ${buildSummaryTableRow("✅ PORTFÖY REALİZE KÂR (satışlardan)", [summaryFmtTL(output.portfolioRealizedProfit)])}
+            ${buildSummaryTableRow("✅ PORTFÖY ANLIK TOPLAM NET KÂR (ikisi birlikte)", [summaryFmtTL(output.portfolioTotalNetProfit)])}
+          </tbody>
+        </table>
+      </div>
+    `;
+    const satmasaydimRow = (label, key) => rowAsset(
+      label,
+      output.assetData.map((a) => {
+        const row = output.satmasaydim.find((s) => s.code === a.code);
+        if (!row || row[key] == null) return "—";
+        return summaryFmtTL(row[key]);
+      })
+    );
+    const table4 = `
+      <div class="summaryCard">
+        <div class="summaryCardTitle">4) “Satmasaydım” (TEORİK – realize değil)</div>
+        <table class="summaryTable">
+          <thead><tr><th>Kalem</th>${assetLabels}</tr></thead>
+          <tbody>
+            ${satmasaydimRow("Gerçekleşen kâr (satışlardan – realize)", "realized")}
+            ${satmasaydimRow("Satmasaydım: satılan toplam miktarın bugünkü teorik kârı", "soldTheo")}
+            ${satmasaydimRow("Kaçırdığım ek kâr (fırsat maliyeti – teorik)", "missed")}
+            ${satmasaydimRow("Satmasaydım: toplam alınan miktarın bugünkü teorik kârı", "totalTheo")}
+          </tbody>
+        </table>
+      </div>
+    `;
+    host.innerHTML = `${header}${table1}${table2}${table3}${table4}`;
+  };
+  const initPortfolioSummaryPanel = () => {
+    const host = $("portfolioSummaryPanel");
+    if (!host) return;
+    host.innerHTML = `<div class="summaryOutput" id="psOutput"></div>`;
+    const btn = $("btnCalc");
+    const inpGms = $("inpSilver");
+    const inpAs = $("inpAselsan");
+    const inpUc = $("inpUcaym");
+    const out = $("psOutput");
+    if (!btn || !inpGms || !inpAs || !inpUc || !out) return;
+    btn.addEventListener("click", () => {
+      const prevSnapshot = readSummarySnapshot();
+      const prevInputs = prevSnapshot ? {
+        gms: parseSummaryInput(prevSnapshot.gmsSatRaw || ""),
+        aselsan: parseSummaryInput(prevSnapshot.aselsanRaw || ""),
+        ucaym: parseSummaryInput(prevSnapshot.ucaymRaw || ""),
+        totalNetTl: prevSnapshot.totalNetTl
+      } : null;
+      const inputs = {
+        gms: parseSummaryInput(inpGms.value),
+        aselsan: parseSummaryInput(inpAs.value),
+        ucaym: parseSummaryInput(inpUc.value)
+      };
+      if (inputs.gms.value == null || inputs.aselsan.value == null) {
+        renderSummaryOutput(out, null);
+        return;
+      }
+      const output = computeSummary(inputs);
+      if (!output) {
+        renderSummaryOutput(out, null);
+        return;
+      }
+      const snap = {
+        gmsSatRaw: inputs.gms.raw,
+        aselsanRaw: inputs.aselsan.raw,
+        ucaymRaw: inputs.ucaym.raw,
+        totalNetTl: output.portfolioTotalNetProfit,
+        timestamp: Date.now()
+      };
+      writeSummarySnapshot(snap);
+      renderSummaryOutput(out, {
+        submittedAt: snap.timestamp,
+        inputs,
+        prevInputs,
+        output
+      });
+    });
+  };
+
   // ====== INIT ======
   $("btnCalc").addEventListener("click", calcAndPersist);
   $("btnAddTrade").addEventListener("click", addTrade);
   $("btnReset").addEventListener("click", resetAll);
-  ensureSeededTransactions();
+  initPortfolioSummaryPanel();
   const tradeClear = $("btnTradeClear");
   if (tradeClear) {
     tradeClear.addEventListener("click", () => {
